@@ -22,15 +22,23 @@ const CFG: Required<TempestConfig> = {
 };
 
 /* ---- Icons ---- */
+// Sparkle: one large 4-point star + one small 4-point star.
 const SPARKLE = (size = 24) => `
 <svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="#FFFFFF" aria-hidden="true">
-  <path d="M13.2 2.2c.2-.5.9-.5 1.1 0l1.35 3.6a1 1 0 0 0 .59.59l3.6 1.35c.5.19.5.9 0 1.09l-3.6 1.35a1 1 0 0 0-.59.59l-1.35 3.6c-.19.5-.9.5-1.09 0l-1.35-3.6a1 1 0 0 0-.59-.59l-3.6-1.35c-.5-.19-.5-.9 0-1.09l3.6-1.35a1 1 0 0 0 .59-.59z"/>
-  <path d="M6 14.5c.12-.33.6-.33.72 0l.63 1.68a.7.7 0 0 0 .41.41l1.68.63c.34.13.34.6 0 .73l-1.68.63a.7.7 0 0 0-.41.41l-.63 1.68c-.13.33-.6.33-.72 0l-.63-1.68a.7.7 0 0 0-.41-.41l-1.68-.63c-.34-.13-.34-.6 0-.73l1.68-.63a.7.7 0 0 0 .41-.41z"/>
+  <path d="M14 2c.3 2.9 1.6 4.2 4.5 4.5C15.6 6.8 14.3 8.1 14 11c-.3-2.9-1.6-4.2-4.5-4.5C12.4 6.2 13.7 4.9 14 2z"/>
+  <path d="M7 12.5c.2 2 1.1 2.9 3.1 3.1-2 .2-2.9 1.1-3.1 3.1-.2-2-1.1-2.9-3.1-3.1 2-.2 2.9-1.1 3.1-3.1z"/>
 </svg>`;
 
 const CLOSE_ICON = `
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
   <path d="M6 6l12 12M18 6L6 18"/>
+</svg>`;
+
+const MORE_ICON = `
+<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <circle cx="5" cy="12" r="2"/>
+  <circle cx="12" cy="12" r="2"/>
+  <circle cx="19" cy="12" r="2"/>
 </svg>`;
 
 const SEND_ICON = `
@@ -46,6 +54,7 @@ const MIC_ICON = `
 
 class TempestWidget {
   private root: HTMLDivElement;
+  private launcher!: HTMLDivElement;
   private bubble!: HTMLButtonElement;
   private panel!: HTMLDivElement;
   private messagesEl!: HTMLDivElement;
@@ -58,18 +67,27 @@ class TempestWidget {
   constructor(shadow: ShadowRoot) {
     this.root = document.createElement("div");
     this.root.className = "tw-root";
-    this.buildBubble();
+    this.buildLauncher();
     this.buildPanel();
     shadow.appendChild(this.root);
   }
 
-  private buildBubble() {
+  private buildLauncher() {
+    this.launcher = document.createElement("div");
+    this.launcher.className = "tw-launcher";
+
+    const pulse = document.createElement("div");
+    pulse.className = "tw-pulse";
+
     this.bubble = document.createElement("button");
     this.bubble.className = "tw-bubble";
     this.bubble.setAttribute("aria-label", `Chat with ${CFG.assistantName}`);
     this.bubble.innerHTML = SPARKLE(24);
     this.bubble.addEventListener("click", () => this.open());
-    this.root.appendChild(this.bubble);
+
+    this.launcher.appendChild(pulse);
+    this.launcher.appendChild(this.bubble);
+    this.root.appendChild(this.launcher);
   }
 
   private buildPanel() {
@@ -77,6 +95,10 @@ class TempestWidget {
     this.panel.className = "tw-panel";
     this.panel.setAttribute("role", "dialog");
     this.panel.setAttribute("aria-label", `${CFG.assistantName} assistant`);
+
+    // Drag handle (mobile)
+    const handle = document.createElement("div");
+    handle.className = "tw-handle";
 
     // Header
     const header = document.createElement("div");
@@ -87,11 +109,20 @@ class TempestWidget {
         <span class="tw-name">${escapeHtml(CFG.assistantName)}</span>
         <span class="tw-status"><span class="tw-dot"></span>Online</span>
       </div>`;
+
+    const moreBtn = document.createElement("button");
+    moreBtn.className = "tw-hbtn";
+    moreBtn.setAttribute("aria-label", "More options");
+    moreBtn.innerHTML = MORE_ICON;
+    // TODO: wire up more-options menu in a future slice (visual only for now).
+
     const closeBtn = document.createElement("button");
-    closeBtn.className = "tw-close";
+    closeBtn.className = "tw-hbtn";
     closeBtn.setAttribute("aria-label", "Close chat");
     closeBtn.innerHTML = CLOSE_ICON;
     closeBtn.addEventListener("click", () => this.close());
+
+    header.appendChild(moreBtn);
     header.appendChild(closeBtn);
 
     // Messages
@@ -101,15 +132,6 @@ class TempestWidget {
     // Footer
     const footer = document.createElement("div");
     footer.className = "tw-footer";
-
-    const talk = document.createElement("button");
-    talk.className = "tw-talk";
-    talk.innerHTML = `${MIC_ICON}<span>Talk to me</span>`;
-    // TODO: wire up voice interaction in a future slice (visual only for now).
-    talk.addEventListener("click", () => { /* TODO: voice mode */ });
-
-    const inputRow = document.createElement("div");
-    inputRow.className = "tw-input-row";
 
     this.input = document.createElement("input");
     this.input.className = "tw-input";
@@ -122,17 +144,23 @@ class TempestWidget {
       }
     });
 
+    const voiceBtn = document.createElement("button");
+    voiceBtn.className = "tw-voice";
+    voiceBtn.setAttribute("aria-label", "Voice");
+    voiceBtn.innerHTML = MIC_ICON;
+    // TODO: wire up voice interaction in a future slice (visual only for now).
+
     this.sendBtn = document.createElement("button");
     this.sendBtn.className = "tw-send";
     this.sendBtn.setAttribute("aria-label", "Send message");
     this.sendBtn.innerHTML = SEND_ICON;
     this.sendBtn.addEventListener("click", () => this.send());
 
-    inputRow.appendChild(this.input);
-    inputRow.appendChild(this.sendBtn);
-    footer.appendChild(talk);
-    footer.appendChild(inputRow);
+    footer.appendChild(this.input);
+    footer.appendChild(voiceBtn);
+    footer.appendChild(this.sendBtn);
 
+    this.panel.appendChild(handle);
     this.panel.appendChild(header);
     this.panel.appendChild(this.messagesEl);
     this.panel.appendChild(footer);
@@ -145,7 +173,7 @@ class TempestWidget {
   private open() {
     if (this.isOpen) return;
     this.isOpen = true;
-    this.bubble.classList.add("tw-hidden");
+    this.launcher.classList.add("tw-hidden");
     // ensure transition triggers
     requestAnimationFrame(() => this.panel.classList.add("tw-open"));
     setTimeout(() => this.input.focus(), 320);
@@ -155,7 +183,7 @@ class TempestWidget {
     if (!this.isOpen) return;
     this.isOpen = false;
     this.panel.classList.remove("tw-open");
-    setTimeout(() => this.bubble.classList.remove("tw-hidden"), 180);
+    setTimeout(() => this.launcher.classList.remove("tw-hidden"), 180);
   }
 
   private addMessage(kind: "ai" | "user" | "error", text: string): HTMLDivElement {
