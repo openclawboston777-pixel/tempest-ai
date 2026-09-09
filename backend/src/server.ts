@@ -1,6 +1,9 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
+import fastifyStatic from "@fastify/static";
+import path from "node:path";
+import fs from "node:fs";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
 import healthRoutes from "./routes/health.js";
@@ -16,6 +19,26 @@ export async function buildApp() {
   await app.register(rateLimit, {
     max: 60,
     timeWindow: "1 minute",
+  });
+
+  // Serve the built widget (optional — only if the public dir exists).
+  const publicDir = path.join(process.cwd(), "public");
+  if (fs.existsSync(publicDir)) {
+    await app.register(fastifyStatic, {
+      root: publicDir,
+      prefix: "/",
+    });
+  }
+
+  // Convenience route: serve the widget IIFE bundle as /embed.js
+  app.get("/embed.js", async (_req, reply) => {
+    const widgetPath = path.join(publicDir, "tempest-widget.iife.js");
+    if (!fs.existsSync(widgetPath)) {
+      reply.code(404).send({ error: "widget bundle not found" });
+      return reply;
+    }
+    reply.header("Content-Type", "application/javascript; charset=utf-8");
+    return reply.send(fs.createReadStream(widgetPath));
   });
 
   await app.register(healthRoutes);
