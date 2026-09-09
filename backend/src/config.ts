@@ -3,7 +3,7 @@ import { z } from "zod";
 const EnvSchema = z.object({
   XAI_API_KEY: z.string().optional(),
   XAI_BASE_URL: z.string().url().default("https://api.x.ai/v1"),
-  XAI_TEXT_MODEL: z.string().default("grok-4"),
+  XAI_TEXT_MODEL: z.string().default("grok-4.6"),
 
   SHOPIFY_STORE_DOMAIN: z.string().optional(),
   SHOPIFY_STOREFRONT_TOKEN: z.string().optional(),
