@@ -1,4 +1,6 @@
 import { getProducts } from "./getProducts.js";
+import { getShopPolicies } from "./getShopPolicies.js";
+import { getOrderStatus } from "./getOrderStatus.js";
 import { logger } from "../logger.js";
 
 export const toolDefs = [
@@ -24,6 +26,36 @@ export const toolDefs = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_shop_policies",
+      description:
+        "Fetch the store's published policies (returns/refunds, shipping, privacy, " +
+        "terms of service, subscriptions). Use for any policy question.",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_order_status",
+      description:
+        "Look up an order's status and tracking. Requires BOTH the order number and " +
+        "the email used on the order for verification.",
+      parameters: {
+        type: "object",
+        properties: {
+          orderNumber: { type: "string" },
+          email: { type: "string" },
+        },
+        required: ["orderNumber", "email"],
+      },
+    },
+  },
 ];
 
 export async function executeTool(name: string, argsJson: string): Promise<string> {
@@ -39,6 +71,26 @@ export async function executeTool(name: string, argsJson: string): Promise<strin
         }
         const products = await getProducts(query);
         return JSON.stringify({ products });
+      }
+      case "get_shop_policies": {
+        return await getShopPolicies();
+      }
+      case "get_order_status": {
+        let parsed: { orderNumber?: string; email?: string } = {};
+        try {
+          const raw = JSON.parse(argsJson || "{}") as {
+            orderNumber?: unknown;
+            email?: unknown;
+          };
+          parsed = {
+            orderNumber:
+              typeof raw.orderNumber === "string" ? raw.orderNumber : undefined,
+            email: typeof raw.email === "string" ? raw.email : undefined,
+          };
+        } catch {
+          parsed = {};
+        }
+        return await getOrderStatus(parsed);
       }
       default:
         logger.warn({ name }, "executeTool: unknown tool");

@@ -10,6 +10,8 @@ const EnvSchema = z.object({
   SHOPIFY_STORE_DOMAIN: z.string().optional(),
   SHOPIFY_STOREFRONT_TOKEN: z.string().optional(),
   SHOPIFY_API_VERSION: z.string().default("2025-07"),
+  SHOPIFY_ADMIN_TOKEN: z.string().optional(),
+  SHOPIFY_ADMIN_API_VERSION: z.string().default("2026-07"),
 
   PORT: z.coerce.number().int().positive().default(8080),
   CORS_ORIGIN: z.string().default("*"),
@@ -27,6 +29,7 @@ const env = parsed.data;
 
 const mockXai = !env.XAI_API_KEY;
 const mockShopify = !env.SHOPIFY_STORE_DOMAIN || !env.SHOPIFY_STOREFRONT_TOKEN;
+const mockOrders = !env.SHOPIFY_ADMIN_TOKEN;
 
 export const config = {
   xaiApiKey: env.XAI_API_KEY,
@@ -38,12 +41,15 @@ export const config = {
   shopifyStoreDomain: env.SHOPIFY_STORE_DOMAIN,
   shopifyStorefrontToken: env.SHOPIFY_STOREFRONT_TOKEN,
   shopifyApiVersion: env.SHOPIFY_API_VERSION,
+  shopifyAdminToken: env.SHOPIFY_ADMIN_TOKEN,
+  shopifyAdminApiVersion: env.SHOPIFY_ADMIN_API_VERSION,
 
   port: env.PORT,
   corsOrigin: env.CORS_ORIGIN,
 
   mockXai,
   mockShopify,
+  mockOrders,
 } as const;
 
 export type Config = typeof config;
