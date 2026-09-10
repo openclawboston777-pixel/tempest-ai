@@ -141,14 +141,22 @@ export class VoiceSession {
     if (!clean) {
       return;
     }
-    this.transcript.push({ role, text: clean, ts: Date.now() });
-    try {
-      if (this.opts.onTranscript) {
-        this.opts.onTranscript(role, clean);
-      }
-    } catch {
-      /* ignore */
+    const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+    const last = this.transcript[this.transcript.length - 1];
+    if (
+      last &&
+      last.role === role &&
+      (norm(clean) === norm(last.text) ||
+        norm(clean).startsWith(norm(last.text)) ||
+        norm(last.text).startsWith(norm(clean)))
+    ) {
+      // Same turn: merge partial/duplicate transcription into one clean entry.
+      if (clean.length >= last.text.length) last.text = clean;
+      last.ts = Date.now();
+      return;
     }
+    this.transcript.push({ role, text: clean, ts: Date.now() });
+    // Voice transcript is stored to S3 only — intentionally NOT rendered in the chat UI.
   }
 
   private flushUserTurn(): void {

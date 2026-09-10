@@ -288,4 +288,12 @@ export const STYLES = `
 .tw-voice-status{position:absolute;left:12px;right:12px;bottom:66px;background:#1C1C1E;color:#fff;font:13px -apple-system,BlinkMacSystemFont,sans-serif;padding:8px 12px;border-radius:12px;text-align:center;z-index:20}
 
 .tw-voice-status{display:none!important}
+
+/* ---------- Proactive text-message bubbles (Phase 2) ---------- */
+.tw-proactive-wrap{position:fixed;right:22px;bottom:78px;display:flex;flex-direction:column;gap:8px;align-items:flex-end;z-index:2147483000}
+@media (max-width:600px){.tw-proactive-wrap{right:18px;bottom:calc(74px + env(safe-area-inset-bottom))}}
+.tw-proactive-bubble{position:relative;max-width:230px;background:rgba(245,245,245,.72);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#1C1C1E;font:14px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;padding:10px 14px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.12);cursor:pointer;opacity:1;transform:translateY(0) scale(1);transition:opacity .25s ease,transform .22s cubic-bezier(0.22,1,0.36,1)}
+.tw-proactive-enter{opacity:0;transform:translateY(6px) scale(.97)}
+.tw-proactive-hide{opacity:0;transform:translateY(4px) scale(.98)}
+.tw-proactive-dismiss{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#fff;color:#1C1C1E;border:1px solid rgba(0,0,0,.1);font-size:11px;line-height:16px;text-align:center;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15)}
 `;

@@ -1,4 +1,5 @@
 import { VoiceSession } from "./voice.js";
+import { Proactive } from "./proactive.js";
 import { STYLES } from "./styles";
 
 interface TempestConfig {
@@ -62,6 +63,7 @@ class TempestWidget {
   private voice!: VoiceSession;
   private voiceBtn?: HTMLButtonElement;
   private firstOpened = false;
+  private proactive?: Proactive;
   private input!: HTMLInputElement;
   private sendBtn!: HTMLButtonElement;
   private messages: ChatMessage[] = [];
@@ -176,10 +178,13 @@ class TempestWidget {
 
     // Greeting
     this.addMessage("ai", `Hi! I'm ${CFG.assistantName}. How can I help you today?`);
+    this.proactive = new Proactive(this.launcher, this.root, (seed) => { this.open(); if (seed) this.addMessage("ai", seed); });
+    this.proactive.start();
   }
 
   private open() {
     if (this.isOpen) return;
+    this.proactive?.suppress();
     this.isOpen = true;
     this.launcher.classList.add("tw-hidden");
     // ensure transition triggers
