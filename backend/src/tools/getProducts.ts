@@ -130,6 +130,22 @@ function mapNode(node: GqlProductNode): Product {
   };
 }
 
+function buildSearchQuery(rawQuery: string): string {
+  const term = rawQuery.trim().toLowerCase();
+  const singular = term.endsWith("s") ? term.slice(0, -1) : term;
+
+  const parts: string[] = [];
+  parts.push(term);
+  if (singular !== term) {
+    parts.push(singular);
+  }
+  parts.push(`title:*${singular}*`);
+  parts.push(`product_type:*${singular}*`);
+  parts.push(`tag:*${singular}*`);
+
+  return parts.join(" OR ");
+}
+
 export async function getProducts(query: string): Promise<Product[]> {
   if (config.mockShopify) {
     logger.info({ query }, "getProducts: MOCK mode (Shopify env not configured)");
@@ -137,6 +153,8 @@ export async function getProducts(query: string): Promise<Product[]> {
   }
 
   const endpoint = `https://${config.shopifyStoreDomain}/api/${config.shopifyApiVersion}/graphql.json`;
+
+  const searchQuery = buildSearchQuery(query);
 
   try {
     const res = await fetch(endpoint, {
@@ -147,7 +165,7 @@ export async function getProducts(query: string): Promise<Product[]> {
       },
       body: JSON.stringify({
         query: PRODUCTS_QUERY,
-        variables: { q: query },
+        variables: { q: searchQuery },
       }),
     });
 
@@ -167,6 +185,13 @@ export async function getProducts(query: string): Promise<Product[]> {
     }
 
     const edges = json.data?.products?.edges ?? [];
+    if (edges.length === 0) {
+      logger.info(
+        { query, searchQuery },
+        "getProducts: no products matched",
+      );
+      return [];
+    }
     return edges.map((e) => mapNode(e.node));
   } catch (err) {
     logger.error({ err }, "getProducts: unexpected error");
