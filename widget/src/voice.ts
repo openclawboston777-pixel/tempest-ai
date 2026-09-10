@@ -168,7 +168,7 @@ export class VoiceSession {
             JSON.stringify({
               type: "session.update",
               session: {
-                voice: "eve",
+                voice: ((tokenData as any).voice as string) || "eve",
                 instructions,
                 turn_detection: { type: "server_vad" },
                 audio: {

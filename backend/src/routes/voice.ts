@@ -4,6 +4,7 @@ import { XaiVoiceProvider } from "../providers/xaiVoiceProvider.js";
 import type { VoiceProvider } from "../providers/voiceProvider.js";
 import { EMA_SYSTEM_PROMPT } from "../ema/systemPrompt.js";
 import { toolDefs, executeTool } from "../tools/index.js";
+import { config } from "../config.js";
 import { logger } from "../logger.js";
 
 const toolBodySchema = z.object({
@@ -18,6 +19,7 @@ export const voiceRoutes: FastifyPluginAsync = async (app) => {
       const token = await provider.mintEphemeralToken();
       return {
         ...token,
+        voice: config.xaiVoice,
         instructions:
           EMA_SYSTEM_PROMPT +
           "\n\nYou are speaking out loud in a voice conversation. Keep replies short, natural, and conversational.",
