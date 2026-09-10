@@ -59,6 +59,9 @@ class TempestWidget {
   private bubble!: HTMLButtonElement;
   private panel!: HTMLDivElement;
   private messagesEl!: HTMLDivElement;
+  private voice!: VoiceSession;
+  private voiceBtn?: HTMLButtonElement;
+  private firstOpened = false;
   private input!: HTMLInputElement;
   private sendBtn!: HTMLButtonElement;
   private messages: ChatMessage[] = [];
@@ -149,11 +152,11 @@ class TempestWidget {
     voiceBtn.className = "tw-voice";
     voiceBtn.setAttribute("aria-label", "Voice");
     voiceBtn.innerHTML = MIC_ICON;
-    const voiceSession = new VoiceSession(
-      ((window as any).TempestConfig?.backendUrl) || location.origin,
-      this.root,
-    );
-    voiceBtn.addEventListener("click", () => voiceSession.toggle(voiceBtn));
+    this.voice = new VoiceSession(CFG.backendUrl, this.root, {
+      onTranscript: (role, text) => this.addMessage(role === "user" ? "user" : "ai", text),
+    });
+    this.voiceBtn = voiceBtn;
+    voiceBtn.addEventListener("click", () => this.voice.toggle(voiceBtn));
 
     this.sendBtn = document.createElement("button");
     this.sendBtn.className = "tw-send";
@@ -182,6 +185,13 @@ class TempestWidget {
     // ensure transition triggers
     requestAnimationFrame(() => this.panel.classList.add("tw-open"));
     setTimeout(() => this.input.focus(), 320);
+    if (!this.firstOpened) {
+      this.firstOpened = true;
+      if ((CFG as any).proactiveVoice !== false) {
+        this.addMessage("ai", "\u{1F399}\uFE0F Heads up: voice chats may be recorded to help improve our service.");
+        void this.voice.startProactive(this.voiceBtn);
+      }
+    }
   }
 
   private close() {
