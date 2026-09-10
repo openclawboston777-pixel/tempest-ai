@@ -13,6 +13,12 @@ const EnvSchema = z.object({
   SHOPIFY_ADMIN_TOKEN: z.string().optional(),
   SHOPIFY_ADMIN_API_VERSION: z.string().default("2026-07"),
 
+  AWS_REGION: z.string().default("eu-north-1"),
+  S3_BUCKET: z.string().optional(),
+  S3_PREFIX: z.string().default("tempest-ai/conversations"),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+
   PORT: z.coerce.number().int().positive().default(8080),
   CORS_ORIGIN: z.string().default("*"),
 });
@@ -43,6 +49,13 @@ export const config = {
   shopifyApiVersion: env.SHOPIFY_API_VERSION,
   shopifyAdminToken: env.SHOPIFY_ADMIN_TOKEN,
   shopifyAdminApiVersion: env.SHOPIFY_ADMIN_API_VERSION,
+
+  awsRegion: env.AWS_REGION,
+  s3Bucket: env.S3_BUCKET,
+  s3Prefix: env.S3_PREFIX.replace(/\/+$/, ""),
+  awsAccessKeyId: env.AWS_ACCESS_KEY_ID,
+  awsSecretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+  storageEnabled: Boolean(env.S3_BUCKET && env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY),
 
   port: env.PORT,
   corsOrigin: env.CORS_ORIGIN,

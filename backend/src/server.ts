@@ -9,9 +9,10 @@ import { logger } from "./logger.js";
 import healthRoutes from "./routes/health.js";
 import chatRoutes from "./routes/chat.js";
 import voiceRoutes from "./routes/voice.js";
+import sessionRoutes from "./routes/session.js";
 
 export async function buildApp() {
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: false, bodyLimit: 25 * 1024 * 1024 });
 
   await app.register(cors, { origin: config.corsOrigin });
 
@@ -96,6 +97,7 @@ export async function buildApp() {
   await app.register(healthRoutes);
   await app.register(chatRoutes);
   await app.register(voiceRoutes);
+  await app.register(sessionRoutes);
 
   return app;
 }
@@ -107,7 +109,12 @@ if (isMain) {
   try {
     await app.listen({ port: config.port, host: "0.0.0.0" });
     logger.info(
-      { port: config.port, mockXai: config.mockXai, mockShopify: config.mockShopify },
+      {
+        port: config.port,
+        mockXai: config.mockXai,
+        mockShopify: config.mockShopify,
+        storageEnabled: config.storageEnabled,
+      },
       "Tempest Ema backend listening"
     );
   } catch (err) {
