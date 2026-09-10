@@ -52,8 +52,8 @@ const PRODUCTS_QUERY = `
   }
 `;
 
-const CHEAPEST_QUERY = `
-  query Cheapest {
+const CHEAPEST_PRODUCTS_QUERY = `
+  query CheapestProducts {
     products(first: 60, sortKey: PRICE) {
       edges {
         node {
@@ -80,8 +80,8 @@ const CHEAPEST_QUERY = `
   }
 `;
 
-const EXPENSIVE_QUERY = `
-  query Expensive {
+const EXPENSIVE_PRODUCTS_QUERY = `
+  query ExpensiveProducts {
     products(first: 60, sortKey: PRICE, reverse: true) {
       edges {
         node {
@@ -164,7 +164,7 @@ function mockProducts(query: string): Product[] {
 }
 
 function parsePrice(amount: string | undefined): number {
-  const n = Number.parseFloat(amount ?? "0");
+  const n = Number.parseFloat(amount ?? "");
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -231,8 +231,8 @@ function endpointUrl(): string {
 }
 
 async function runQuery(
-  body: unknown,
-): Promise<Array<{ node: GqlProductNode }> | null> {
+  body: Record<string, unknown>,
+): Promise<GqlProductNode[] | null> {
   const res = await fetch(endpointUrl(), {
     method: "POST",
     headers: {
@@ -251,13 +251,38 @@ async function runQuery(
   }
 
   const json = (await res.json()) as GqlResponse;
-
   if (json.errors) {
     logger.error({ errors: json.errors }, "getProducts: Shopify GraphQL errors");
     return null;
   }
 
-  return json.data?.products?.edges ?? [];
+  return (json.data?.products?.edges ?? []).map((e) => e.node);
+}
+
+async function getBroadProducts(): Promise<Product[]> {
+  const [cheapest, expensive] = await Promise.all([
+    runQuery({ query: CHEAPEST_PRODUCTS_QUERY }),
+    runQuery({ query: EXPENSIVE_PRODUCTS_QUERY }),
+  ]);
+
+  if (cheapest === null && expensive === null) {
+    return [];
+  }
+
+  const byId = new Map<string, Product>();
+  for (const node of [...(cheapest ?? []), ...(expensive ?? [])]) {
+    if (!byId.has(node.id)) {
+      byId.set(node.id, mapNodeCompact(node));
+    }
+  }
+
+  const merged = Array.from(byId.values());
+  merged.sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
+
+  if (merged.length === 0) {
+    logger.info({ broad: true }, "getProducts: no products matched");
+  }
+  return merged;
 }
 
 export async function getProducts(query: string): Promise<Product[]> {
@@ -270,43 +295,24 @@ export async function getProducts(query: string): Promise<Product[]> {
 
   try {
     if (isBroad) {
-      const [cheapEdges, expensiveEdges] = await Promise.all([
-        runQuery({ query: CHEAPEST_QUERY }),
-        runQuery({ query: EXPENSIVE_QUERY }),
-      ]);
-
-      const merged = new Map<string, Product>();
-      for (const edge of [...(cheapEdges ?? []), ...(expensiveEdges ?? [])]) {
-        if (!merged.has(edge.node.id)) {
-          merged.set(edge.node.id, mapNodeCompact(edge.node));
-        }
-      }
-
-      const products = Array.from(merged.values()).sort(
-        (a, b) => parsePrice(a.price) - parsePrice(b.price),
-      );
-
-      if (products.length === 0) {
-        logger.info({ query, broad: true }, "getProducts: no products matched");
-      }
-      return products;
+      return await getBroadProducts();
     }
 
-    const edges = await runQuery({
+    const nodes = await runQuery({
       query: PRODUCTS_QUERY,
       variables: { q: buildSearchQuery(query) },
     });
 
-    if (edges === null) {
+    if (nodes === null) {
       return [];
     }
 
-    if (edges.length === 0) {
+    if (nodes.length === 0) {
       logger.info({ query, broad: false }, "getProducts: no products matched");
       return [];
     }
 
-    return edges.map((e) => mapNodeFull(e.node));
+    return nodes.map((node) => mapNodeFull(node));
   } catch (err) {
     logger.error({ err }, "getProducts: unexpected error");
     return [];
