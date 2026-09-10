@@ -1,6 +1,16 @@
+// VoiceSession: browser client for xAI/Grok realtime Speech-to-Speech
+// over WebSocket streaming raw PCM audio (24kHz).
+
+interface VoiceToken {
+  token: string;
+  model?: string;
+  instructions?: string;
+  tools?: ChatTool[];
+}
+
 interface ChatTool {
-  type: "function";
-  function: {
+  type: string;
+  function?: {
     name: string;
     description?: string;
     parameters?: unknown;
@@ -8,50 +18,80 @@ interface ChatTool {
 }
 
 interface RealtimeTool {
-  type: "function";
+  type: string;
   name: string;
   description?: string;
   parameters?: unknown;
 }
 
-interface VoiceTokenResponse {
-  token: string;
-  url?: string;
-  model: string;
-  instructions?: string;
-  tools?: ChatTool[];
-}
-
-interface FunctionCallDoneMsg {
-  type: "response.function_call_arguments.done";
-  name: string;
-  call_id: string;
-  arguments: string;
-}
-
-interface RealtimeMsg {
+interface RealtimeEvent {
   type: string;
-  [key: string]: unknown;
+  delta?: string;
+  name?: string;
+  call_id?: string;
+  arguments?: string;
+  error?: { message?: string };
+}
+
+function base64FromBytes(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, Array.from(chunk) as number[]);
+  }
+  return btoa(binary);
+}
+
+function bytesFromBase64(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }
 
 export class VoiceSession {
   private backendUrl: string;
   private container: HTMLElement;
-  private active = false;
-  private pc: RTCPeerConnection | null = null;
-  private dc: RTCDataChannel | null = null;
-  private stream: MediaStream | null = null;
-  private audioEl: HTMLAudioElement | null = null;
-  private statusBar: HTMLElement | null = null;
+  private statusEl: HTMLElement;
   private btn: HTMLElement | null = null;
 
+  private active = false;
+  private stopped = false;
+
+  private stream: MediaStream | null = null;
+  private audioCtx: AudioContext | null = null;
+  private ws: WebSocket | null = null;
+  private src: MediaStreamAudioSourceNode | null = null;
+  private proc: ScriptProcessorNode | null = null;
+  private sink: GainNode | null = null;
+
+  private nextTime = 0;
+
   constructor(backendUrl: string, container: HTMLElement) {
-    this.backendUrl = backendUrl.replace(/\/+$/, "");
+    this.backendUrl = backendUrl;
     this.container = container;
+
+    let statusEl = container.querySelector<HTMLElement>(".tw-voice-status");
+    if (!statusEl) {
+      statusEl = document.createElement("div");
+      statusEl.className = "tw-voice-status";
+      container.appendChild(statusEl);
+    }
+    this.statusEl = statusEl;
+  }
+
+  private setStatus(text: string): void {
+    this.statusEl.textContent = text;
   }
 
   toggle(btn?: HTMLElement): void {
-    if (btn) this.btn = btn;
+    if (btn) {
+      this.btn = btn;
+    }
     if (this.active) {
       this.stop();
     } else {
@@ -59,201 +99,269 @@ export class VoiceSession {
     }
   }
 
-  private setStatus(text: string): void {
-    if (!this.statusBar) {
-      this.statusBar = document.createElement("div");
-      this.statusBar.className = "tw-voice-status";
-      this.container.appendChild(this.statusBar);
-    }
-    this.statusBar.textContent = text;
-  }
-
-  private convertTools(tools?: ChatTool[]): RealtimeTool[] {
-    if (!tools || !Array.isArray(tools)) return [];
-    const out: RealtimeTool[] = [];
-    for (const t of tools) {
-      if (t?.type === "function" && t.function?.name) {
-        out.push({
-          type: "function",
-          name: t.function.name,
-          description: t.function.description,
-          parameters: t.function.parameters,
-        });
-      }
-    }
-    return out;
-  }
-
   async start(): Promise<void> {
-    if (this.active) return;
+    this.stopped = false;
     this.active = true;
+    if (this.btn) {
+      this.btn.classList.add("tw-voice-active");
+    }
 
-    let tokenData: VoiceTokenResponse;
     try {
+      this.setStatus("Connecting…");
+
       const resp = await fetch(`${this.backendUrl}/voice-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "{}",
       });
-      if (!resp.ok) throw new Error(`token ${resp.status}`);
-      tokenData = (await resp.json()) as VoiceTokenResponse;
-    } catch {
-      this.setStatus("Could not start voice session");
-      this.stop();
-      return;
-    }
+      const tokenData = (await resp.json()) as VoiceToken;
+      const token = tokenData.token;
+      const model = tokenData.model || "grok-voice-latest";
+      const instructions = tokenData.instructions || "";
+      const chatTools = tokenData.tools || [];
 
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      this.setStatus("Microphone access needed to talk");
-      this.stop();
-      return;
-    }
-
-    try {
-      const pc = new RTCPeerConnection();
-      this.pc = pc;
-
-      const audioEl = document.createElement("audio");
-      audioEl.autoplay = true;
-      audioEl.setAttribute("playsinline", "");
-      this.audioEl = audioEl;
-      this.container.appendChild(audioEl);
-
-      pc.ontrack = (e: RTCTrackEvent): void => {
-        if (this.audioEl && e.streams[0]) {
-          this.audioEl.srcObject = e.streams[0];
-        }
-      };
-
-      for (const track of this.stream.getTracks()) {
-        pc.addTrack(track, this.stream);
-      }
-
-      const dc = pc.createDataChannel("oai-events");
-      this.dc = dc;
-
-      dc.onopen = (): void => {
-        const sessionUpdate = {
-          type: "session.update",
-          session: {
-            instructions: tokenData.instructions ?? "",
-            tools: this.convertTools(tokenData.tools),
-            tool_choice: "auto",
-            modalities: ["audio", "text"],
-            turn_detection: { type: "server_vad" },
-            input_audio_transcription: { model: "whisper-1" },
-          },
-        };
-        try {
-          dc.send(JSON.stringify(sessionUpdate));
-        } catch {
-          /* ignore */
-        }
-      };
-
-      dc.onmessage = (ev: MessageEvent): void => {
-        void this.handleMessage(ev);
-      };
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      const model = tokenData.model;
-      const sdpResp = await fetch(
-        `https://api.x.ai/v1/realtime?model=${encodeURIComponent(model)}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${tokenData.token}`,
-            "Content-Type": "application/sdp",
-          },
-          body: offer.sdp ?? "",
-        }
-      );
-      if (!sdpResp.ok) throw new Error(`sdp ${sdpResp.status}`);
-      const answer = await sdpResp.text();
-      await pc.setRemoteDescription({ type: "answer", sdp: answer });
-
-      if (this.btn) this.btn.classList.add("tw-voice-active");
-      this.setStatus("Listening… tap mic to stop");
-    } catch {
-      this.setStatus("Voice connection failed");
-      this.stop();
-    }
-  }
-
-  private async handleMessage(ev: MessageEvent): Promise<void> {
-    let msg: RealtimeMsg;
-    try {
-      msg = JSON.parse(ev.data as string) as RealtimeMsg;
-    } catch {
-      return;
-    }
-
-    switch (msg.type) {
-      case "response.function_call_arguments.done":
-        await this.handleFunctionCall(msg as unknown as FunctionCallDoneMsg);
-        break;
-      case "input_audio_buffer.speech_started":
-        this.setStatus("Listening…");
-        break;
-      case "response.audio.done":
-      case "response.done":
-        this.setStatus("Tap mic to stop");
-        break;
-      default:
-        break;
-    }
-  }
-
-  private async handleFunctionCall(msg: FunctionCallDoneMsg): Promise<void> {
-    if (msg.name !== "get_products") return;
-    try {
-      let query = "";
+      // Mic access.
       try {
-        const parsed = JSON.parse(msg.arguments) as { query?: string };
-        query = parsed.query ?? "";
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch {
-        query = "";
+        this.setStatus("Voice error: mic permission");
+        this.stop();
+        return;
       }
 
-      const resp = await fetch(`${this.backendUrl}/tool/get-products`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
-      const result: unknown = await resp.json();
-
-      if (this.dc && this.dc.readyState === "open") {
-        this.dc.send(
-          JSON.stringify({
-            type: "conversation.item.create",
-            item: {
-              type: "function_call_output",
-              call_id: msg.call_id,
-              output: JSON.stringify(result),
-            },
-          })
-        );
-        this.dc.send(JSON.stringify({ type: "response.create" }));
+      if (this.stopped) {
+        this.stop();
+        return;
       }
-    } catch {
-      /* ignore tool error */
+
+      // Audio context (mic tap counts as user gesture).
+      const AudioCtxCtor: typeof AudioContext =
+        (window as unknown as { AudioContext: typeof AudioContext }).AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      this.audioCtx = new AudioCtxCtor({ sampleRate: 24000 });
+      await this.audioCtx.resume();
+      this.nextTime = this.audioCtx.currentTime;
+
+      // Open WebSocket with token in subprotocol.
+      const ws = new WebSocket(
+        `wss://api.x.ai/v1/realtime?model=${encodeURIComponent(model)}`,
+        [`xai-client-secret.${token}`],
+      );
+      ws.binaryType = "arraybuffer";
+      this.ws = ws;
+
+      const convertedTools: RealtimeTool[] = chatTools
+        .filter((t: ChatTool): boolean => !!t.function)
+        .map((t: ChatTool): RealtimeTool => ({
+          type: "function",
+          name: t.function!.name,
+          description: t.function!.description,
+          parameters: t.function!.parameters,
+        }));
+
+      ws.onopen = (): void => {
+        try {
+          if (this.stopped || ws.readyState !== WebSocket.OPEN) {
+            return;
+          }
+          ws.send(
+            JSON.stringify({
+              type: "session.update",
+              session: {
+                voice: "eve",
+                instructions,
+                turn_detection: { type: "server_vad" },
+                audio: {
+                  input: { format: { type: "audio/pcm", rate: 24000 } },
+                  output: { format: { type: "audio/pcm", rate: 24000 } },
+                },
+                tools: convertedTools,
+                tool_choice: "auto",
+              },
+            }),
+          );
+
+          const audioCtx = this.audioCtx!;
+          const src = audioCtx.createMediaStreamSource(this.stream!);
+          const proc = audioCtx.createScriptProcessor(4096, 1, 1);
+          src.connect(proc);
+          const sink = audioCtx.createGain();
+          sink.gain.value = 0;
+          proc.connect(sink);
+          sink.connect(audioCtx.destination);
+
+          this.src = src;
+          this.proc = proc;
+          this.sink = sink;
+
+          proc.onaudioprocess = (e: AudioProcessingEvent): void => {
+            if (ws.readyState !== WebSocket.OPEN) {
+              return;
+            }
+            const f32 = e.inputBuffer.getChannelData(0);
+            const pcm = new Int16Array(f32.length);
+            for (let i = 0; i < f32.length; i++) {
+              const s = Math.max(-1, Math.min(1, f32[i]));
+              pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+            }
+            const b64 = base64FromBytes(new Uint8Array(pcm.buffer));
+            ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 }));
+          };
+
+          this.setStatus("Listening…");
+        } catch (err) {
+          this.handleError(err);
+        }
+      };
+
+      ws.onmessage = (ev: MessageEvent): void => {
+        void this.onMessage(ev);
+      };
+
+      ws.onerror = (): void => {
+        if (!this.stopped) {
+          this.setStatus("Voice error: connection");
+        }
+      };
+
+      ws.onclose = (): void => {
+        if (!this.stopped) {
+          this.setStatus("Voice ended");
+          this.stop();
+        }
+      };
+    } catch (err) {
+      this.handleError(err);
     }
+  }
+
+  private async onMessage(ev: MessageEvent): Promise<void> {
+    try {
+      if (typeof ev.data !== "string") {
+        return; // ignore binary frames
+      }
+      const event = JSON.parse(ev.data) as RealtimeEvent;
+      switch (event.type) {
+        case "response.output_audio.delta":
+        case "response.audio.delta": {
+          if (event.delta) {
+            this.schedulePlayback(event.delta);
+            this.setStatus("Ema is speaking…");
+          }
+          break;
+        }
+        case "input_audio_buffer.speech_started": {
+          this.setStatus("Listening…");
+          break;
+        }
+        case "response.function_call_arguments.done": {
+          if (event.name === "get_products") {
+            this.setStatus("Thinking…");
+            const q = ((): string => {
+              try {
+                return (JSON.parse(event.arguments || "{}") as { query?: string }).query || "";
+              } catch {
+                return "";
+              }
+            })();
+            const res = await (
+              await fetch(`${this.backendUrl}/tool/get-products`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query: q }),
+              })
+            ).json();
+            const ws = this.ws;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "conversation.item.create",
+                  item: {
+                    type: "function_call_output",
+                    call_id: event.call_id,
+                    output: JSON.stringify(res),
+                  },
+                }),
+              );
+              ws.send(JSON.stringify({ type: "response.create" }));
+            }
+          }
+          break;
+        }
+        case "error": {
+          const msg = (event.error && event.error.message) || "unknown";
+          this.setStatus("Voice error: " + msg);
+          // eslint-disable-next-line no-console
+          console.error("Voice error event:", event.error);
+          break;
+        }
+        default:
+          break;
+      }
+    } catch (err) {
+      this.handleError(err);
+    }
+  }
+
+  private schedulePlayback(b64: string): void {
+    const audioCtx = this.audioCtx;
+    if (!audioCtx) {
+      return;
+    }
+    const bytes = bytesFromBase64(b64);
+    const int16 = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
+    const len = int16.length;
+    if (len === 0) {
+      return;
+    }
+    const buf = audioCtx.createBuffer(1, len, 24000);
+    const channel = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      channel[i] = int16[i] / 32768;
+    }
+    const source = audioCtx.createBufferSource();
+    source.buffer = buf;
+    source.connect(audioCtx.destination);
+    const startAt = Math.max(audioCtx.currentTime, this.nextTime);
+    source.start(startAt);
+    this.nextTime = startAt + buf.duration;
+  }
+
+  private handleError(err: unknown): void {
+    const msg = err instanceof Error ? err.message : String(err);
+    this.setStatus("Voice error: " + msg);
+    this.stop();
   }
 
   stop(): void {
-    if (this.dc) {
+    this.stopped = true;
+    this.active = false;
+
+    if (this.proc) {
+      this.proc.onaudioprocess = null;
       try {
-        this.dc.close();
+        this.proc.disconnect();
       } catch {
         /* ignore */
       }
-      this.dc = null;
+      this.proc = null;
     }
-
+    if (this.src) {
+      try {
+        this.src.disconnect();
+      } catch {
+        /* ignore */
+      }
+      this.src = null;
+    }
+    if (this.sink) {
+      try {
+        this.sink.disconnect();
+      } catch {
+        /* ignore */
+      }
+      this.sink = null;
+    }
     if (this.stream) {
       for (const track of this.stream.getTracks()) {
         try {
@@ -264,31 +372,28 @@ export class VoiceSession {
       }
       this.stream = null;
     }
-
-    if (this.pc) {
+    if (this.ws) {
       try {
-        this.pc.close();
+        if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+          this.ws.close();
+        }
       } catch {
         /* ignore */
       }
-      this.pc = null;
+      this.ws = null;
+    }
+    if (this.audioCtx) {
+      try {
+        void this.audioCtx.close();
+      } catch {
+        /* ignore */
+      }
+      this.audioCtx = null;
     }
 
-    if (this.audioEl) {
-      this.audioEl.srcObject = null;
-      this.audioEl.remove();
-      this.audioEl = null;
-    }
-
-    if (this.statusBar) {
-      this.statusBar.remove();
-      this.statusBar = null;
-    }
-
+    this.setStatus("");
     if (this.btn) {
       this.btn.classList.remove("tw-voice-active");
     }
-
-    this.active = false;
   }
 }
