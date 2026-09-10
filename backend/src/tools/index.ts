@@ -1,6 +1,7 @@
 import { getProducts } from "./getProducts.js";
 import { getShopPolicies } from "./getShopPolicies.js";
 import { getOrderStatus } from "./getOrderStatus.js";
+import { submitSupportTicket } from "./submitSupportTicket.js";
 import { logger } from "../logger.js";
 
 export const toolDefs = [
@@ -56,6 +57,28 @@ export const toolDefs = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "submit_support_ticket",
+      description:
+        "File a support ticket so a human from the support team can follow up with the " +
+        "customer. Use when you cannot resolve the issue yourself (damaged/defective item, " +
+        "refund or return needing a human, order lookup unavailable, complaints), or when " +
+        "the customer asks for a human. Requires the customer's email and a short " +
+        "description of the issue.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          email: { type: "string" },
+          message: { type: "string" },
+          orderNumber: { type: "string" },
+        },
+        required: ["email", "message"],
+      },
+    },
+  },
 ];
 
 export async function executeTool(name: string, argsJson: string): Promise<string> {
@@ -91,6 +114,32 @@ export async function executeTool(name: string, argsJson: string): Promise<strin
           parsed = {};
         }
         return await getOrderStatus(parsed);
+      }
+      case "submit_support_ticket": {
+        let parsed: {
+          name?: string;
+          email?: string;
+          message?: string;
+          orderNumber?: string;
+        } = {};
+        try {
+          const raw = JSON.parse(argsJson || "{}") as {
+            name?: unknown;
+            email?: unknown;
+            message?: unknown;
+            orderNumber?: unknown;
+          };
+          parsed = {
+            name: typeof raw.name === "string" ? raw.name : undefined,
+            email: typeof raw.email === "string" ? raw.email : undefined,
+            message: typeof raw.message === "string" ? raw.message : undefined,
+            orderNumber:
+              typeof raw.orderNumber === "string" ? raw.orderNumber : undefined,
+          };
+        } catch {
+          parsed = {};
+        }
+        return await submitSupportTicket(parsed);
       }
       default:
         logger.warn({ name }, "executeTool: unknown tool");
