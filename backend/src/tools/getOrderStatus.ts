@@ -74,6 +74,9 @@ export async function getOrderStatus(args: {
 
   try {
     const num = orderNumber.replace(/^#/, "");
+    if (!/^[A-Za-z0-9-]{1,32}$/.test(num)) {
+      return JSON.stringify({ error: "invalid_order_number" });
+    }
     const res = await fetch(
       `https://${config.shopifyStoreDomain}/admin/api/${config.shopifyAdminApiVersion}/graphql.json`,
       {
@@ -84,7 +87,7 @@ export async function getOrderStatus(args: {
         },
         body: JSON.stringify({
           query: ORDER_QUERY,
-          variables: { q: `name:#${num}` },
+          variables: { q: `name:"#${num}"` },
         }),
       },
     );
