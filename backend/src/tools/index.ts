@@ -81,7 +81,7 @@ export const toolDefs = [
   },
 ];
 
-export async function executeTool(name: string, argsJson: string): Promise<string> {
+async function executeToolImpl(name: string, argsJson: string): Promise<string> {
   try {
     switch (name) {
       case "get_products": {
@@ -148,5 +148,24 @@ export async function executeTool(name: string, argsJson: string): Promise<strin
   } catch (err) {
     logger.error({ err, name }, "executeTool: failed");
     return JSON.stringify({ error: "Tool execution failed." });
+  }
+}
+
+
+export async function executeTool(name: string, argsJson: string): Promise<string> {
+  const start = Date.now();
+  const TIMEOUT_MS = 15000;
+  try {
+    const result = await Promise.race<string>([
+      executeToolImpl(name, argsJson),
+      new Promise<string>((_, reject) =>
+        setTimeout(() => reject(new Error("tool_timeout")), TIMEOUT_MS)
+      ),
+    ]);
+    logger.info({ tool: name, ms: Date.now() - start }, "tool executed");
+    return result;
+  } catch (err) {
+    logger.error({ tool: name, ms: Date.now() - start, err: String(err) }, "tool failed or timed out");
+    return JSON.stringify({ error: "tool_error" });
   }
 }
