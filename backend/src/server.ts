@@ -38,6 +38,7 @@ export async function buildApp() {
       return reply;
     }
     reply.header("Content-Type", "application/javascript; charset=utf-8");
+    reply.header("Cache-Control", "no-store");
     return reply.send(fs.createReadStream(widgetPath));
   });
 
@@ -88,6 +89,7 @@ export async function buildApp() {
 </body>
 </html>`;
     reply.header("Content-Type", "text/html; charset=utf-8");
+    reply.header("Cache-Control", "no-store");
     return reply.send(html);
   });
 
