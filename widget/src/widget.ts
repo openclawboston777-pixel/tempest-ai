@@ -1,3 +1,4 @@
+import { VoiceSession } from "./voice.js";
 import { STYLES } from "./styles";
 
 interface TempestConfig {
@@ -148,7 +149,11 @@ class TempestWidget {
     voiceBtn.className = "tw-voice";
     voiceBtn.setAttribute("aria-label", "Voice");
     voiceBtn.innerHTML = MIC_ICON;
-    // TODO: wire up voice interaction in a future slice (visual only for now).
+    const voiceSession = new VoiceSession(
+      ((window as any).TempestConfig?.backendUrl) || location.origin,
+      this.root,
+    );
+    voiceBtn.addEventListener("click", () => voiceSession.toggle(voiceBtn));
 
     this.sendBtn = document.createElement("button");
     this.sendBtn.className = "tw-send";

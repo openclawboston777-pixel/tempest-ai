@@ -283,4 +283,7 @@ export const STYLES = `
 .tw-send:active { transform: scale(.92); }
 .tw-send:disabled { opacity: .5; cursor: default; }
 .tw-send svg { width: 20px; height: 20px; }
+
+.tw-voice-active{box-shadow:0 0 0 3px rgba(201,79,61,.35)!important}
+.tw-voice-status{position:absolute;left:12px;right:12px;bottom:66px;background:#1C1C1E;color:#fff;font:13px -apple-system,BlinkMacSystemFont,sans-serif;padding:8px 12px;border-radius:12px;text-align:center;z-index:20}
 `;

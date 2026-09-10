@@ -4,6 +4,7 @@ const EnvSchema = z.object({
   XAI_API_KEY: z.string().optional(),
   XAI_BASE_URL: z.string().url().default("https://api.x.ai/v1"),
   XAI_TEXT_MODEL: z.string().default("grok-4.6"),
+  XAI_VOICE_MODEL: z.string().default("grok-voice-latest"),
 
   SHOPIFY_STORE_DOMAIN: z.string().optional(),
   SHOPIFY_STOREFRONT_TOKEN: z.string().optional(),
@@ -30,6 +31,7 @@ export const config = {
   xaiApiKey: env.XAI_API_KEY,
   xaiBaseUrl: env.XAI_BASE_URL.replace(/\/+$/, ""),
   xaiTextModel: env.XAI_TEXT_MODEL,
+  xaiVoiceModel: env.XAI_VOICE_MODEL,
 
   shopifyStoreDomain: env.SHOPIFY_STORE_DOMAIN,
   shopifyStorefrontToken: env.SHOPIFY_STOREFRONT_TOKEN,
