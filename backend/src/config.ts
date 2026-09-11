@@ -15,6 +15,11 @@ const EnvSchema = z.object({
   SHOPIFY_CLIENT_ID: z.string().optional(),
   SHOPIFY_CLIENT_SECRET: z.string().optional(),
 
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_IMAGE_MODEL: z.string().default("gemini-3.1-flash-image"),
+  VISUALIZE_MAX_PER_SESSION: z.coerce.number().int().positive().default(6),
+  VISUALIZE_MAX_UPLOAD_MB: z.coerce.number().positive().default(12),
+
   AWS_REGION: z.string().default("eu-north-1"),
   S3_BUCKET: z.string().optional(),
   S3_PREFIX: z.string().default("tempest-ai/conversations"),
@@ -56,6 +61,12 @@ export const config = {
   shopifyAdminApiVersion: env.SHOPIFY_ADMIN_API_VERSION,
   shopifyClientId: env.SHOPIFY_CLIENT_ID,
   shopifyClientSecret: env.SHOPIFY_CLIENT_SECRET,
+
+  geminiApiKey: env.GEMINI_API_KEY,
+  geminiImageModel: env.GEMINI_IMAGE_MODEL,
+  visualizeEnabled: Boolean(env.GEMINI_API_KEY),
+  visualizeMaxPerSession: env.VISUALIZE_MAX_PER_SESSION,
+  visualizeMaxUploadBytes: Math.round(env.VISUALIZE_MAX_UPLOAD_MB * 1024 * 1024),
 
   awsRegion: env.AWS_REGION,
   s3Bucket: env.S3_BUCKET,

@@ -11,6 +11,7 @@ import chatRoutes from "./routes/chat.js";
 import voiceRoutes from "./routes/voice.js";
 import sessionRoutes from "./routes/session.js";
 import supportRoutes from "./routes/support.js";
+import visualizeRoutes from "./routes/visualize.js";
 
 export async function buildApp() {
   const app = Fastify({ logger: false, bodyLimit: 25 * 1024 * 1024 });
@@ -100,6 +101,7 @@ export async function buildApp() {
   await app.register(voiceRoutes);
   await app.register(sessionRoutes);
   await app.register(supportRoutes);
+  await app.register(visualizeRoutes);
 
   return app;
 }
