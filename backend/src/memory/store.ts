@@ -4,6 +4,16 @@ import { logger } from "../logger.js";
 
 const VISITOR_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+// Reject fabricated/placeholder emails so the model can't invent a cross-linkable
+// identity (e.g. alex.rivera@email.com, customer@example.com, test@test.com).
+const PLACEHOLDER_EMAIL_RE =
+  /@(example|test|sample|domain|email|mail|acme|demo|company|yourdomain|placeholder)\.(com|org|net|io)$/i;
+const PLACEHOLDER_LOCAL_RE = /^(test|customer|user|example|noreply|no-reply|name|email|firstname|john\.?doe|jane\.?doe)@/i;
+
+function isRealEmail(email: string): boolean {
+  const e = String(email ?? "").trim().toLowerCase();
+  return EMAIL_RE.test(e) && !PLACEHOLDER_EMAIL_RE.test(e) && !PLACEHOLDER_LOCAL_RE.test(e);
+}
 
 export async function ensureVisitor(visitorId: string, userAgent?: string): Promise<void> {
   if (!config.dbEnabled) return;
@@ -90,7 +100,7 @@ export async function findOrCreateProfileByEmail(
   if (!config.dbEnabled) return null;
   try {
     const normalized = String(email ?? "").trim().toLowerCase();
-    if (!EMAIL_RE.test(normalized)) return null;
+    if (!isRealEmail(normalized)) return null;
     const res = await query<{ id: string }>(
       `INSERT INTO profiles (email, name) VALUES ($1,$2)
        ON CONFLICT (email) DO UPDATE SET name=COALESCE(profiles.name, EXCLUDED.name),
@@ -133,39 +143,44 @@ export async function rememberCustomer(
     await ensureVisitor(visitorId);
     const prefsJson = JSON.stringify(data?.prefs ?? {});
 
-    if (data?.email) {
-      const pid = await findOrCreateProfileByEmail(data.email, data.name);
-      if (pid) {
-        await linkVisitorToProfile(visitorId, pid);
-        if (data.name || data.prefs) {
-          await query(
-            `UPDATE profiles SET name=COALESCE($2,name), prefs=prefs||$3::jsonb,
-             updated_at=now() WHERE id=$1`,
-            [pid, data.name ?? null, prefsJson]
-          );
-        }
-        return { ok: true, profileId: pid };
-      }
-      return { ok: false };
-    }
+    const hasName = typeof data?.name === "string" && data.name.trim().length > 0;
+    const hasPrefs = data?.prefs && Object.keys(data.prefs).length > 0;
+    // Only treat email as identity if it's a real (non-placeholder) address.
+    const realEmail = data?.email && isRealEmail(data.email) ? data.email : undefined;
+    if (!realEmail && !hasName && !hasPrefs) return { ok: false };
 
-    if (data?.name || data?.prefs) {
+    // Resolve the profile to write to:
+    //  1) a known email -> find/create that identity and link (merges across devices)
+    //  2) otherwise -> the visitor's existing profile, or a fresh anonymous profile
+    let pid: string | null = null;
+    if (realEmail) {
+      pid = await findOrCreateProfileByEmail(realEmail, data.name);
+      if (pid) await linkVisitorToProfile(visitorId, pid);
+    }
+    if (!pid) {
       const res = await query<{ profile_id: string | null }>(
         `SELECT profile_id FROM visitors WHERE id=$1`,
         [visitorId]
       );
-      const pid = res?.rows?.[0]?.profile_id ?? null;
-      if (pid) {
-        await query(
-          `UPDATE profiles SET name=COALESCE($2,name), prefs=prefs||$3::jsonb,
-           updated_at=now() WHERE id=$1`,
-          [pid, data.name ?? null, prefsJson]
+      pid = res?.rows?.[0]?.profile_id ?? null;
+      if (!pid) {
+        // Create an anonymous profile so this visitor is remembered even without an email.
+        const created = await query<{ id: string }>(
+          `INSERT INTO profiles (name) VALUES ($1) RETURNING id`,
+          [hasName ? data.name : null]
         );
-        return { ok: true, profileId: pid };
+        pid = created?.rows?.[0]?.id ?? null;
+        if (pid) await linkVisitorToProfile(visitorId, pid);
       }
     }
+    if (!pid) return { ok: false };
 
-    return { ok: false };
+    await query(
+      `UPDATE profiles SET name=COALESCE($2,name), prefs=prefs||$3::jsonb,
+       updated_at=now() WHERE id=$1`,
+      [pid, hasName ? data.name : null, prefsJson]
+    );
+    return { ok: true, profileId: pid };
   } catch (err) {
     logger.error({ err: String(err) }, "rememberCustomer failed");
     return { ok: false };
