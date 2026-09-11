@@ -12,6 +12,9 @@ import voiceRoutes from "./routes/voice.js";
 import sessionRoutes from "./routes/session.js";
 import supportRoutes from "./routes/support.js";
 import visualizeRoutes from "./routes/visualize.js";
+import memoryRoutes from "./routes/memory.js";
+import { migrate } from "./db/pool.js";
+import { purgeExpired as purgeMemory } from "./memory/store.js";
 
 export async function buildApp() {
   const app = Fastify({ logger: false, bodyLimit: 25 * 1024 * 1024 });
@@ -102,6 +105,11 @@ export async function buildApp() {
   await app.register(sessionRoutes);
   await app.register(supportRoutes);
   await app.register(visualizeRoutes);
+  await app.register(memoryRoutes);
+
+  // Customer-memory schema (best-effort; no-op when DB disabled, never throws).
+  await migrate();
+  void purgeMemory();
 
   return app;
 }

@@ -26,6 +26,9 @@ const EnvSchema = z.object({
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
 
+  DATABASE_URL: z.string().optional(),
+  MEMORY_RETENTION_DAYS: z.coerce.number().int().positive().default(365),
+
   PORT: z.coerce.number().int().positive().default(8080),
   CORS_ORIGIN: z.string().default("*"),
 });
@@ -74,6 +77,10 @@ export const config = {
   awsAccessKeyId: env.AWS_ACCESS_KEY_ID,
   awsSecretAccessKey: env.AWS_SECRET_ACCESS_KEY,
   storageEnabled: Boolean(env.S3_BUCKET && env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY),
+
+  databaseUrl: env.DATABASE_URL,
+  dbEnabled: Boolean(env.DATABASE_URL),
+  memoryRetentionDays: env.MEMORY_RETENTION_DAYS,
 
   port: env.PORT,
   corsOrigin: env.CORS_ORIGIN,

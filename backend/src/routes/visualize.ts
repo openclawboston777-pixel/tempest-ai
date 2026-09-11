@@ -5,6 +5,7 @@ import { logger } from "../logger.js";
 import { putObject, dateKey, sanitizeId } from "../storage/s3.js";
 import { getProducts } from "../tools/getProducts.js";
 import { visualizeRoom } from "../providers/geminiImageProvider.js";
+import { recordProductInterest } from "../memory/store.js";
 
 const SESSION_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 
@@ -175,6 +176,13 @@ const visualizeRoutes: FastifyPluginAsync = async (app) => {
         }
 
         sessionCounts.set(id, used + 1);
+
+        // Visualizing a product is a strong interest signal — remember it.
+        void recordProductInterest(id, {
+          productTitle: product.title,
+          productId: product.id,
+          source: "visualized",
+        });
 
         const rand = randomUUID().slice(0, 8);
         const base = `${config.s3Prefix}/visualize/${dateKey()}/${id}-${rand}`;

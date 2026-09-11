@@ -2,6 +2,8 @@ import { getProducts } from "./getProducts.js";
 import { getShopPolicies } from "./getShopPolicies.js";
 import { getOrderStatus } from "./getOrderStatus.js";
 import { submitSupportTicket } from "./submitSupportTicket.js";
+import { rememberCustomer, recordProductInterest } from "../memory/store.js";
+import type { ToolContext } from "../providers/textProvider.js";
 import { logger } from "../logger.js";
 
 export const toolDefs = [
@@ -87,9 +89,47 @@ export const toolDefs = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "remember_customer",
+      description:
+        "Save what you learn about THIS customer so you can help them better now and on future " +
+        "visits (their name, email, preferences like style/budget/room, and products they're " +
+        "interested in). Call this once you learn a real detail worth remembering — especially " +
+        "when the customer shares their email or name, or expresses a clear preference or a " +
+        "product they like. Only pass information the customer actually provided; never invent it.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "The customer's name, if they gave it." },
+          email: {
+            type: "string",
+            description:
+              "The customer's real email (used to recognize them across visits/devices). Only if they provided it.",
+          },
+          preferences: {
+            type: "object",
+            description:
+              "Key/value preferences, e.g. { style: 'modern', budget: 'under 2000', room: 'living room' }.",
+            additionalProperties: true,
+          },
+          interestedProducts: {
+            type: "array",
+            items: { type: "string" },
+            description: "Titles of products the customer likes or is considering.",
+          },
+        },
+      },
+    },
+  },
 ];
 
-async function executeToolImpl(name: string, argsJson: string): Promise<string> {
+async function executeToolImpl(
+  name: string,
+  argsJson: string,
+  ctx?: ToolContext,
+): Promise<string> {
   try {
     switch (name) {
       case "get_products": {
@@ -156,6 +196,41 @@ async function executeToolImpl(name: string, argsJson: string): Promise<string> 
         }
         return await submitSupportTicket(parsed);
       }
+      case "remember_customer": {
+        const sessionId = ctx?.sessionId;
+        if (!sessionId) {
+          return JSON.stringify({ ok: false, note: "no_session" });
+        }
+        let raw: {
+          name?: unknown;
+          email?: unknown;
+          preferences?: unknown;
+          interestedProducts?: unknown;
+        } = {};
+        try {
+          raw = JSON.parse(argsJson || "{}");
+        } catch {
+          raw = {};
+        }
+        const name = typeof raw.name === "string" ? raw.name : undefined;
+        const email = typeof raw.email === "string" ? raw.email : undefined;
+        const prefs =
+          raw.preferences && typeof raw.preferences === "object"
+            ? (raw.preferences as Record<string, unknown>)
+            : undefined;
+        const result = await rememberCustomer(sessionId, { email, name, prefs });
+        if (Array.isArray(raw.interestedProducts)) {
+          for (const t of raw.interestedProducts) {
+            if (typeof t === "string" && t.trim()) {
+              await recordProductInterest(sessionId, {
+                productTitle: t.trim(),
+                source: "mentioned",
+              });
+            }
+          }
+        }
+        return JSON.stringify({ ok: result.ok });
+      }
       default:
         logger.warn({ name }, "executeTool: unknown tool");
         return JSON.stringify({ error: `Unknown tool: ${name}` });
@@ -167,12 +242,16 @@ async function executeToolImpl(name: string, argsJson: string): Promise<string> 
 }
 
 
-export async function executeTool(name: string, argsJson: string): Promise<string> {
+export async function executeTool(
+  name: string,
+  argsJson: string,
+  ctx?: ToolContext,
+): Promise<string> {
   const start = Date.now();
   const TIMEOUT_MS = 15000;
   try {
     const result = await Promise.race<string>([
-      executeToolImpl(name, argsJson),
+      executeToolImpl(name, argsJson, ctx),
       new Promise<string>((_, reject) =>
         setTimeout(() => reject(new Error("tool_timeout")), TIMEOUT_MS)
       ),

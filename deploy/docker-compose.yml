@@ -11,6 +11,9 @@ services:
     ports:
       - "8090:8080"
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - tempest-net
     healthcheck:
@@ -19,6 +22,30 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: tempest-postgres
+    environment:
+      POSTGRES_USER: tempest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: tempest
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - tempest-net
+    # No published ports: DB is reachable only inside tempest-net.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tempest -d tempest"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pgdata:
+    name: tempest-pgdata
 
 networks:
   tempest-net:

@@ -4,9 +4,23 @@ import { VisualizePanel } from "./visualize.js";
 import { STYLES } from "./styles";
 
 function makeWidgetSessionId(): string {
-  const c = (globalThis as any).crypto;
-  if (c && typeof c.randomUUID === "function") return c.randomUUID();
-  return "s-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+  // Persist an anonymous visitor id so a returning shopper (same browser) is
+  // recognized across visits. Falls back to an ephemeral id if storage is blocked.
+  const KEY = "tw_visitor_id";
+  const gen = () => {
+    const c = (globalThis as any).crypto;
+    if (c && typeof c.randomUUID === "function") return c.randomUUID();
+    return "s-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+  };
+  try {
+    const existing = window.localStorage.getItem(KEY);
+    if (existing && /^[A-Za-z0-9_-]{1,64}$/.test(existing)) return existing;
+    const id = gen();
+    window.localStorage.setItem(KEY, id);
+    return id;
+  } catch {
+    return gen();
+  }
 }
 
 interface TempestConfig {
@@ -293,7 +307,7 @@ class TempestWidget {
       const res = await fetch(`${CFG.backendUrl}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: this.messages })
+        body: JSON.stringify({ messages: this.messages, sessionId: this.sessionId })
       });
 
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);

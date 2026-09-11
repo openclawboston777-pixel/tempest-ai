@@ -22,7 +22,10 @@ interface StreamDelta {
 }
 
 export class XaiTextProvider implements TextProvider {
-  async *streamChat(messages: ChatMessage[]): AsyncGenerator<string> {
+  async *streamChat(
+    messages: ChatMessage[],
+    ctx?: { sessionId?: string },
+  ): AsyncGenerator<string> {
     if (config.mockXai) {
       yield "Hi, I'm Ema (mock mode). ";
       yield "I can't reach the live model right now, but I'm here to help with our furniture collection.";
@@ -135,7 +138,7 @@ export class XaiTextProvider implements TextProvider {
           for (const tc of calls) {
             let out: string;
             try {
-              out = await executeTool(tc.function.name, tc.function.arguments);
+              out = await executeTool(tc.function.name, tc.function.arguments, ctx);
             } catch (err) {
               logger.error({ err, tool: tc.function.name }, "tool execution failed");
               out = JSON.stringify({ error: "tool_failed" });
