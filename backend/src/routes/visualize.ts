@@ -65,6 +65,36 @@ const visualizeRoutes: FastifyPluginAsync = async (app) => {
   app.addContentTypeParser("image/png", binaryParser as any);
   app.addContentTypeParser("image/webp", binaryParser as any);
 
+  // Lightweight product picker for the "See it in your room" flow: returns
+  // titles + images so the widget can show selectable thumbnails.
+  app.get(
+    "/catalog",
+    { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const q = (req.query ?? {}) as Record<string, unknown>;
+        const query = String(q.q ?? "").trim().slice(0, 100);
+        const products = await getProducts(query);
+        const items = products
+          .filter((p) => p.image)
+          .slice(0, 12)
+          .map((p) => ({
+            title: p.title,
+            image: p.image,
+            price: p.price,
+            currency: p.currency,
+            url: p.url,
+            available: p.available,
+          }));
+        return { ok: true, products: items };
+      } catch (err) {
+        logger.error({ err: String(err) }, "catalog route failed");
+        reply.code(500);
+        return { ok: false, products: [] };
+      }
+    }
+  );
+
   app.post(
     "/visualize",
     { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },

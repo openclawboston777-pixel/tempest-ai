@@ -1,6 +1,13 @@
 import { VoiceSession } from "./voice.js";
 import { Proactive } from "./proactive.js";
+import { VisualizePanel } from "./visualize.js";
 import { STYLES } from "./styles";
+
+function makeWidgetSessionId(): string {
+  const c = (globalThis as any).crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  return "s-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+}
 
 interface TempestConfig {
   backendUrl?: string;
@@ -54,6 +61,13 @@ const MIC_ICON = `
   <path d="M5 11a7 7 0 0 0 14 0M12 18v4"/>
 </svg>`;
 
+const ROOM_ICON = `
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="4" width="18" height="14" rx="2"/>
+  <circle cx="8.5" cy="9.5" r="1.5"/>
+  <path d="M21 15l-5-5L5 18"/>
+</svg>`;
+
 class TempestWidget {
   private root: HTMLDivElement;
   private launcher!: HTMLDivElement;
@@ -62,6 +76,8 @@ class TempestWidget {
   private messagesEl!: HTMLDivElement;
   private voice!: VoiceSession;
   private voiceBtn?: HTMLButtonElement;
+  private visualize?: VisualizePanel;
+  private sessionId = makeWidgetSessionId();
   private firstOpened = false;
   private proactive?: Proactive;
   private input!: HTMLInputElement;
@@ -150,6 +166,19 @@ class TempestWidget {
       }
     });
 
+    const roomBtn = document.createElement("button");
+    roomBtn.className = "tw-voice";
+    roomBtn.setAttribute("aria-label", "See it in your room");
+    roomBtn.title = "See it in your room";
+    roomBtn.innerHTML = ROOM_ICON;
+    this.visualize = new VisualizePanel(
+      CFG.backendUrl,
+      this.root,
+      this.sessionId,
+      (dataUrl, productTitle) => this.addImageMessage(dataUrl, productTitle),
+    );
+    roomBtn.addEventListener("click", () => this.visualize?.open());
+
     const voiceBtn = document.createElement("button");
     voiceBtn.className = "tw-voice";
     voiceBtn.setAttribute("aria-label", "Voice");
@@ -167,6 +196,7 @@ class TempestWidget {
     this.sendBtn.addEventListener("click", () => this.send());
 
     footer.appendChild(this.input);
+    footer.appendChild(roomBtn);
     footer.appendChild(voiceBtn);
     footer.appendChild(this.sendBtn);
 
@@ -213,6 +243,25 @@ class TempestWidget {
     this.messagesEl.appendChild(el);
     this.scrollToBottom();
     return el;
+  }
+
+  private addImageMessage(dataUrl: string, caption: string): void {
+    const el = document.createElement("div");
+    el.className = "tw-msg ai tw-msg-image";
+    const img = document.createElement("img");
+    img.src = dataUrl;
+    img.alt = caption ? `${caption} in your room` : "Your room visualization";
+    img.style.cssText = "max-width:100%;border-radius:10px;display:block;";
+    el.appendChild(img);
+    if (caption) {
+      const cap = document.createElement("div");
+      cap.className = "tw-msg-caption";
+      cap.textContent = caption;
+      cap.style.cssText = "font-size:12px;opacity:0.75;margin-top:4px;";
+      el.appendChild(cap);
+    }
+    this.messagesEl.appendChild(el);
+    this.scrollToBottom();
   }
 
   private scrollToBottom() {
