@@ -134,6 +134,36 @@ interface GqlResponse {
   errors?: unknown;
 }
 
+export function cleanDescription(raw: string): string {
+  let text = typeof raw === "string" ? raw : "";
+  if (!text) return "";
+
+  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ");
+  text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ");
+
+  text = text.replace(/<[^>]*>/g, " ");
+
+  text = text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+
+  text = text.replace(
+    /\b[A-Z][A-Za-z]+(?: [A-Z][A-Za-z]+)*\s*#[A-Za-z0-9_]+#/g,
+    " ",
+  );
+  text = text.replace(/#[A-Za-z0-9_]+#/g, " ");
+
+  text = text.replace(/\.[-\w]+\s*\{[^}]*\}/g, " ");
+
+  text = text.replace(/\s+/g, " ").trim();
+
+  return text.slice(0, 2000);
+}
+
 function mockProducts(query: string): Product[] {
   return [
     {
@@ -182,7 +212,7 @@ function mapNodeFull(node: GqlProductNode): Product {
   return {
     id: node.id,
     title: node.title,
-    description: node.description ?? "",
+    description: cleanDescription(node.description ?? ""),
     price: min?.amount ?? "0.00",
     currency: min?.currencyCode ?? "USD",
     available,

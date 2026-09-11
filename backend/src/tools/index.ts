@@ -10,9 +10,12 @@ export const toolDefs = [
     function: {
       name: "get_products",
       description:
-        "Search the store catalog for products. Use this for ANY product fact: " +
-        "names, prices, availability, variants, descriptions, or links. " +
-        "Returns up to 5 matching products.",
+        "Search the store catalog for products and return full product details. " +
+        "Use this for ANY product fact: names, prices, availability, variants, links, " +
+        "and especially exact dimensions/measurements (assembled length × width × height in inches), " +
+        "weight in lbs, main material, seat count, product features, and packaging/shipping notes — " +
+        "these live inside the product description text. ALWAYS use this tool for any size, " +
+        "measurement, material, weight, or \"will it fit\" question. Returns up to 5 matching products.",
       parameters: {
         type: "object",
         properties: {
@@ -32,11 +35,16 @@ export const toolDefs = [
     function: {
       name: "get_shop_policies",
       description:
-        "Fetch the store's published policies (returns/refunds, shipping, privacy, " +
-        "terms of service, subscriptions). Use for any policy question.",
+        "Fetch store help & policy pages: shipping & delivery times, returns/refunds, warranty & guarantee, financing, FAQ, terms, privacy, contact/support, about/story. Pass a 'topic' keyword to get the most relevant page.",
       parameters: {
         type: "object",
-        properties: {},
+        properties: {
+          topic: {
+            type: "string",
+            description:
+              "Topic keyword, e.g. 'shipping', 'returns', 'warranty', 'financing', 'faq'.",
+          },
+        },
       },
     },
   },
@@ -96,7 +104,14 @@ async function executeToolImpl(name: string, argsJson: string): Promise<string> 
         return JSON.stringify({ products });
       }
       case "get_shop_policies": {
-        return await getShopPolicies();
+        let topic: string | undefined;
+        try {
+          const raw = JSON.parse(argsJson || "{}") as { topic?: unknown };
+          topic = typeof raw.topic === "string" ? raw.topic : undefined;
+        } catch {
+          topic = undefined;
+        }
+        return await getShopPolicies(topic);
       }
       case "get_order_status": {
         let parsed: { orderNumber?: string; email?: string } = {};
