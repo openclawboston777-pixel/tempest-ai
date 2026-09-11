@@ -17,6 +17,7 @@ export interface Product {
   available: boolean;
   quantityAvailable?: number | null;
   url: string;
+  image?: string;
   variants?: ProductVariant[];
 }
 
@@ -31,6 +32,9 @@ const PRODUCTS_QUERY = `
           onlineStoreUrl
           availableForSale
           totalInventory
+          featuredImage {
+            url
+          }
           priceRange {
             minVariantPrice {
               amount
@@ -66,6 +70,9 @@ const CHEAPEST_PRODUCTS_QUERY = `
           onlineStoreUrl
           availableForSale
           totalInventory
+          featuredImage {
+            url
+          }
           priceRange {
             minVariantPrice {
               amount
@@ -95,6 +102,9 @@ const EXPENSIVE_PRODUCTS_QUERY = `
           onlineStoreUrl
           availableForSale
           totalInventory
+          featuredImage {
+            url
+          }
           priceRange {
             minVariantPrice {
               amount
@@ -126,6 +136,7 @@ interface GqlProductNode {
   onlineStoreUrl: string | null;
   availableForSale?: boolean;
   totalInventory?: number | null;
+  featuredImage?: { url?: string } | null;
   priceRange: { minVariantPrice: GqlMoney };
   variants: {
     edges: Array<{
@@ -231,6 +242,7 @@ function mapNodeFull(node: GqlProductNode): Product {
     available,
     quantityAvailable: node.totalInventory ?? null,
     url: node.onlineStoreUrl ?? "",
+    image: node.featuredImage?.url ?? "",
     variants,
   };
 }
@@ -252,6 +264,7 @@ function mapNodeCompact(node: GqlProductNode): Product {
     available,
     quantityAvailable: node.totalInventory ?? null,
     url: node.onlineStoreUrl ?? "",
+    image: node.featuredImage?.url ?? "",
   };
 }
 
