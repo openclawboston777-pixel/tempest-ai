@@ -6,6 +6,11 @@ process.env.XAI_API_KEY = "x";
 
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 
+vi.mock("../src/shopify/adminToken.js", () => ({
+  getAdminToken: vi.fn(async () => "shpat_testtoken"),
+  invalidateAdminToken: vi.fn(),
+}));
+
 type OrderStatusFn = (args: {
   orderNumber?: string;
   email?: string;

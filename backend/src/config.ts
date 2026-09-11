@@ -12,6 +12,8 @@ const EnvSchema = z.object({
   SHOPIFY_API_VERSION: z.string().default("2025-07"),
   SHOPIFY_ADMIN_TOKEN: z.string().optional(),
   SHOPIFY_ADMIN_API_VERSION: z.string().default("2026-07"),
+  SHOPIFY_CLIENT_ID: z.string().optional(),
+  SHOPIFY_CLIENT_SECRET: z.string().optional(),
 
   AWS_REGION: z.string().default("eu-north-1"),
   S3_BUCKET: z.string().optional(),
@@ -35,7 +37,10 @@ const env = parsed.data;
 
 const mockXai = !env.XAI_API_KEY;
 const mockShopify = !env.SHOPIFY_STORE_DOMAIN || !env.SHOPIFY_STOREFRONT_TOKEN;
-const mockOrders = !env.SHOPIFY_ADMIN_TOKEN;
+const mockOrders = Boolean(
+  !(env.SHOPIFY_CLIENT_ID && env.SHOPIFY_CLIENT_SECRET) &&
+    !env.SHOPIFY_ADMIN_TOKEN,
+);
 
 export const config = {
   xaiApiKey: env.XAI_API_KEY,
@@ -49,6 +54,8 @@ export const config = {
   shopifyApiVersion: env.SHOPIFY_API_VERSION,
   shopifyAdminToken: env.SHOPIFY_ADMIN_TOKEN,
   shopifyAdminApiVersion: env.SHOPIFY_ADMIN_API_VERSION,
+  shopifyClientId: env.SHOPIFY_CLIENT_ID,
+  shopifyClientSecret: env.SHOPIFY_CLIENT_SECRET,
 
   awsRegion: env.AWS_REGION,
   s3Bucket: env.S3_BUCKET,

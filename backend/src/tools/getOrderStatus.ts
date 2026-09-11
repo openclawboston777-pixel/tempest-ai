@@ -1,5 +1,6 @@
 import { config } from "../config.js";
 import { logger } from "../logger.js";
+import { getAdminToken, invalidateAdminToken } from "../shopify/adminToken.js";
 
 const ORDER_QUERY = `
   query OrderByName($q: String!) {
@@ -77,20 +78,55 @@ export async function getOrderStatus(args: {
     if (!/^[A-Za-z0-9-]{1,32}$/.test(num)) {
       return JSON.stringify({ error: "invalid_order_number" });
     }
-    const res = await fetch(
-      `https://${config.shopifyStoreDomain}/admin/api/${config.shopifyAdminApiVersion}/graphql.json`,
-      {
+
+    let token = await getAdminToken();
+    if (!token) {
+      return JSON.stringify({
+        error: "order_lookup_unavailable",
+        message: "Order lookup isn't enabled yet.",
+      });
+    }
+
+    const url = `https://${config.shopifyStoreDomain}/admin/api/${config.shopifyAdminApiVersion}/graphql.json`;
+    const body = JSON.stringify({
+      query: ORDER_QUERY,
+      variables: { q: `name:"#${num}"` },
+    });
+
+    const doFetch = (accessToken: string) =>
+      fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Shopify-Access-Token": config.shopifyAdminToken as string,
+          "X-Shopify-Access-Token": accessToken,
         },
-        body: JSON.stringify({
-          query: ORDER_QUERY,
-          variables: { q: `name:"#${num}"` },
-        }),
-      },
-    );
+        body,
+      });
+
+    let res = await doFetch(token);
+
+    if (res.status === 401 || res.status === 403) {
+      invalidateAdminToken();
+      const fresh = await getAdminToken();
+      if (!fresh) {
+        return JSON.stringify({
+          error: "order_lookup_unavailable",
+          message: "Order lookup isn't enabled yet.",
+        });
+      }
+      token = fresh;
+      res = await doFetch(token);
+      if (res.status === 401 || res.status === 403) {
+        logger.error(
+          { status: res.status },
+          "getOrderStatus: Shopify Admin auth failed after refresh",
+        );
+        return JSON.stringify({
+          error: "order_lookup_unavailable",
+          message: "Order lookup isn't enabled yet.",
+        });
+      }
+    }
 
     if (!res.ok) {
       logger.error(
