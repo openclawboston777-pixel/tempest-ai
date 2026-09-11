@@ -5,6 +5,7 @@ export interface ProductVariant {
   title: string;
   price: string;
   available: boolean;
+  quantityAvailable?: number | null;
 }
 
 export interface Product {
@@ -14,6 +15,7 @@ export interface Product {
   price: string;
   currency: string;
   available: boolean;
+  quantityAvailable?: number | null;
   url: string;
   variants?: ProductVariant[];
 }
@@ -28,6 +30,7 @@ const PRODUCTS_QUERY = `
           description
           onlineStoreUrl
           availableForSale
+          totalInventory
           priceRange {
             minVariantPrice {
               amount
@@ -39,6 +42,7 @@ const PRODUCTS_QUERY = `
               node {
                 title
                 availableForSale
+                quantityAvailable
                 price {
                   amount
                   currencyCode
@@ -61,6 +65,7 @@ const CHEAPEST_PRODUCTS_QUERY = `
           title
           onlineStoreUrl
           availableForSale
+          totalInventory
           priceRange {
             minVariantPrice {
               amount
@@ -89,6 +94,7 @@ const EXPENSIVE_PRODUCTS_QUERY = `
           title
           onlineStoreUrl
           availableForSale
+          totalInventory
           priceRange {
             minVariantPrice {
               amount
@@ -119,10 +125,16 @@ interface GqlProductNode {
   description?: string;
   onlineStoreUrl: string | null;
   availableForSale?: boolean;
+  totalInventory?: number | null;
   priceRange: { minVariantPrice: GqlMoney };
   variants: {
     edges: Array<{
-      node: { title?: string; availableForSale: boolean; price?: GqlMoney };
+      node: {
+        title?: string;
+        availableForSale: boolean;
+        quantityAvailable?: number | null;
+        price?: GqlMoney;
+      };
     }>;
   };
 }
@@ -204,6 +216,7 @@ function mapNodeFull(node: GqlProductNode): Product {
     title: e.node.title ?? "",
     price: e.node.price?.amount ?? "0.00",
     available: Boolean(e.node.availableForSale),
+    quantityAvailable: e.node.quantityAvailable ?? null,
   }));
   const available =
     typeof node.availableForSale === "boolean"
@@ -216,6 +229,7 @@ function mapNodeFull(node: GqlProductNode): Product {
     price: min?.amount ?? "0.00",
     currency: min?.currencyCode ?? "USD",
     available,
+    quantityAvailable: node.totalInventory ?? null,
     url: node.onlineStoreUrl ?? "",
     variants,
   };
@@ -236,6 +250,7 @@ function mapNodeCompact(node: GqlProductNode): Product {
     price: min?.amount ?? "0.00",
     currency: min?.currencyCode ?? "USD",
     available,
+    quantityAvailable: node.totalInventory ?? null,
     url: node.onlineStoreUrl ?? "",
   };
 }
