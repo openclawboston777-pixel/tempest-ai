@@ -16,8 +16,13 @@ Earlier this session (recap): fast streaming text (~1.4s), proactive voice on op
 - Voice transcripts + audio: `s3://tempest-content-storage/tempest-ai/conversations/<date>/`
 - Support tickets: `s3://tempest-content-storage/tempest-ai/support/<date>/`
 
+## ✅ LIVE order lookup (activated 2026-09-11)
+- **Client-credentials auth is live.** You installed the "Grok Voice Support & Sales" app; the backend now
+  auto-fetches, caches, and refreshes the Admin API token itself (24h TTL, refresh-before-expiry, retry-on-401).
+  **You never copy or rotate a token again.** Verified end-to-end: real order #1001 (paid/fulfilled) returns
+  correctly through Ema's chat; wrong-email lookups are blocked (no data leak).
+
 ## 🔓 Needs YOU (quick, when you're up)
-1. **Shopify Admin token** → activates live order lookup. Store admin → Settings → Apps → **Develop apps** → create app → Admin scopes `read_orders, read_fulfillments, read_returns` (+ `read_customers` if wanted) → Install → copy `shpat_…` → attach it (`SHOPIFY_ADMIN_TOKEN=…`). (Read-only = safe; not full admin.)
 2. **Publish refund/shipping policies** in Shopify (Settings → Policies) → Ema answers them automatically (code already live; only Privacy is currently published).
 3. **Support email/SMTP** → so escalation tickets email you (today they're saved to S3; I can review them).
 4. **Decide proactive-voice cost gating** — auto-voice starts a live session per visitor who opens the chat (xAI voice minutes). Fine as-is, but we can gate it (e.g., only after a text nudge, or a daily cap) to control cost.
