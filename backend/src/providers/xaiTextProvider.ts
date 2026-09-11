@@ -3,55 +3,42 @@ import { logger } from "../logger.js";
 import { toolDefs, executeTool } from "../tools/index.js";
 import type { TextProvider, ChatMessage } from "./textProvider.js";
 
-interface ToolCallAccumulator {
+interface ToolCallAcc {
   id: string;
-  name: string;
-  args: string;
+  type: "function";
+  function: { name: string; arguments: string };
 }
 
-async function* parseSSE(
-  body: ReadableStream<Uint8Array>
-): AsyncGenerator<any> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("data:")) continue;
-      const data = trimmed.slice(5).trim();
-      if (data === "[DONE]") return;
-      try {
-        yield JSON.parse(data);
-      } catch {
-        // ignore malformed partial JSON
-      }
-    }
-  }
+interface DeltaToolCall {
+  index?: number;
+  id?: string;
+  type?: string;
+  function?: { name?: string; arguments?: string };
+}
+
+interface StreamDelta {
+  content?: string | null;
+  tool_calls?: DeltaToolCall[];
 }
 
 export class XaiTextProvider implements TextProvider {
-  async *streamChat(messages: ChatMessage[]): AsyncGenerator<string> {
+  async *streamChat(
+    messages: ChatMessage[],
+    ctx?: { sessionId?: string },
+  ): AsyncGenerator<string> {
     if (config.mockXai) {
       yield "Hi, I'm Ema (mock mode). ";
       yield "I can't reach the live model right now, but I'm here to help with our furniture collection.";
       return;
     }
 
-    // Work on a mutable copy so we can append tool results.
     const convo: ChatMessage[] = [...messages];
 
-    // Allow a few tool-call rounds to avoid infinite loops.
-    for (let round = 0; round < 5; round++) {
-      const toolCalls: Record<number, ToolCallAccumulator> = {};
-      let sawToolCall = false;
+    try {
+      for (let round = 0; round < 4; round++) {
+        const toolCalls: ToolCallAcc[] = [];
+        let streamedContent = "";
 
-      try {
         const res = await fetch(`${config.xaiBaseUrl}/chat/completions`, {
           method: "POST",
           headers: {
@@ -60,80 +47,118 @@ export class XaiTextProvider implements TextProvider {
           },
           body: JSON.stringify({
             model: config.xaiTextModel,
-            stream: true,
             messages: convo,
             tools: toolDefs,
+            tool_choice: "auto",
+            stream: true,
           }),
         });
 
         if (!res.ok || !res.body) {
           const text = await res.text().catch(() => "");
-          logger.error({ status: res.status, text }, "xAI chat request failed");
-          yield "Sorry, I'm having trouble reaching the assistant right now. Please try again in a moment.";
+          logger.error({ status: res.status, text }, "xAI stream request failed");
+          yield "Sorry, I'm having trouble right now.";
           return;
         }
 
-        for await (const chunk of parseSSE(res.body)) {
-          const choice = chunk?.choices?.[0];
-          if (!choice) continue;
-          const delta = choice.delta ?? {};
+        const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let done = false;
 
-          if (delta.content) {
-            yield delta.content as string;
-          }
+        while (!done) {
+          const { value, done: streamDone } = await reader.read();
+          if (streamDone) break;
+          if (!value) continue;
 
-          if (Array.isArray(delta.tool_calls)) {
-            sawToolCall = true;
-            for (const tc of delta.tool_calls) {
-              const idx = tc.index ?? 0;
-              const acc =
-                toolCalls[idx] ?? (toolCalls[idx] = { id: "", name: "", args: "" });
-              if (tc.id) acc.id = tc.id;
-              if (tc.function?.name) acc.name = tc.function.name;
-              if (tc.function?.arguments) acc.args += tc.function.arguments;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line.startsWith("data:")) continue;
+            const payload = line.slice(5).trim();
+            if (!payload) continue;
+            if (payload === "[DONE]") {
+              done = true;
+              break;
+            }
+
+            let json: any;
+            try {
+              json = JSON.parse(payload);
+            } catch {
+              continue;
+            }
+
+            const choice = json?.choices?.[0];
+            const d: StreamDelta | undefined = choice?.delta;
+            if (!d) continue;
+
+            if (typeof d.content === "string" && d.content.length > 0) {
+              streamedContent += d.content;
+              yield d.content;
+            }
+
+            if (Array.isArray(d.tool_calls)) {
+              for (const tc of d.tool_calls) {
+                const idx = typeof tc.index === "number" ? tc.index : 0;
+                if (!toolCalls[idx]) {
+                  toolCalls[idx] = {
+                    id: "",
+                    type: "function",
+                    function: { name: "", arguments: "" },
+                  };
+                }
+                const acc = toolCalls[idx];
+                if (tc.id) acc.id = tc.id;
+                if (tc.function?.name) acc.function.name += tc.function.name;
+                if (tc.function?.arguments) acc.function.arguments += tc.function.arguments;
+              }
             }
           }
         }
-      } catch (err) {
-        logger.error({ err }, "xAI chat stream error");
-        yield "Sorry, something went wrong while generating a response.";
-        return;
-      }
 
-      if (!sawToolCall) {
-        return; // completed normally
-      }
-
-      // Append assistant tool_calls message + tool results, then continue.
-      const calls = Object.values(toolCalls);
-      convo.push({
-        role: "assistant",
-        content: "",
-        // @ts-expect-error tool_calls is OpenAI-compatible extra field
-        tool_calls: calls.map((c) => ({
-          id: c.id,
-          type: "function",
-          function: { name: c.name, arguments: c.args },
-        })),
-      });
-
-      for (const c of calls) {
-        let result: string;
         try {
-          result = await executeTool(c.name, c.args);
-        } catch (err) {
-          logger.error({ err, tool: c.name }, "tool execution failed");
-          result = JSON.stringify({ error: "tool_failed" });
+          await reader.cancel();
+        } catch {
+          /* ignore */
         }
-        convo.push({
-          role: "tool",
-          content: result,
-          tool_call_id: c.id,
-          name: c.name,
-        });
-      }
-    }
 
-    logger.warn("xAI chat exceeded max tool-call rounds");
+        const calls = toolCalls.filter((c): c is ToolCallAcc => Boolean(c));
+        if (calls.length > 0) {
+          convo.push({
+            role: "assistant",
+            content: streamedContent || "",
+            // @ts-expect-error tool_calls is an OpenAI-compatible extra field
+            tool_calls: calls,
+          });
+
+          for (const tc of calls) {
+            let out: string;
+            try {
+              out = await executeTool(tc.function.name, tc.function.arguments, ctx);
+            } catch (err) {
+              logger.error({ err, tool: tc.function.name }, "tool execution failed");
+              out = JSON.stringify({ error: "tool_failed" });
+            }
+            convo.push({
+              role: "tool",
+              content: out,
+              tool_call_id: tc.id,
+              name: tc.function.name,
+            });
+          }
+          continue;
+        }
+
+        break;
+      }
+    } catch (err) {
+      logger.error({ err }, "xAI streaming chat error");
+      yield "Sorry, I'm having trouble right now.";
+      return;
+    }
   }
 }

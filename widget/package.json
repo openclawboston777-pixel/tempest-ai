@@ -1,0 +1,15 @@
+{
+  "name": "tempest-ema-widget",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Tempest AI (Ema) embeddable storefront chat widget.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}
