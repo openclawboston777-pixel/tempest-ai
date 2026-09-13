@@ -4,6 +4,7 @@ import { EMA_SYSTEM_PROMPT } from "../ema/systemPrompt.js";
 import { XaiTextProvider } from "../providers/xaiTextProvider.js";
 import type { ChatMessage, TextProvider } from "../providers/textProvider.js";
 import { ensureVisitor, getProfileContext, saveMessages } from "../memory/store.js";
+import { logEvent } from "../memory/analytics.js";
 import { logger } from "../logger.js";
 
 const SESSION_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -39,6 +40,9 @@ export const chatRoutes: FastifyPluginAsync = async (app) => {
       try {
         await ensureVisitor(sessionId, String(request.headers["user-agent"] || ""));
         memoryContext = await getProfileContext(sessionId);
+        void logEvent(sessionId, "user_message", {
+          returning: Boolean(memoryContext),
+        });
       } catch (err) {
         logger.warn({ err: String(err) }, "chat: memory load failed");
       }

@@ -28,6 +28,7 @@ const EnvSchema = z.object({
 
   DATABASE_URL: z.string().optional(),
   MEMORY_RETENTION_DAYS: z.coerce.number().int().positive().default(365),
+  ADMIN_TOKEN: z.string().optional(),
 
   PORT: z.coerce.number().int().positive().default(8080),
   CORS_ORIGIN: z.string().default("*"),
@@ -81,6 +82,7 @@ export const config = {
   databaseUrl: env.DATABASE_URL,
   dbEnabled: Boolean(env.DATABASE_URL),
   memoryRetentionDays: env.MEMORY_RETENTION_DAYS,
+  adminToken: env.ADMIN_TOKEN,
 
   port: env.PORT,
   corsOrigin: env.CORS_ORIGIN,

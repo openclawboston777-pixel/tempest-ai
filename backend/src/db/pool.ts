@@ -84,11 +84,26 @@ export async function migrate(): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now()
     )`);
 
+    await query(`CREATE TABLE IF NOT EXISTS events (
+      id bigserial PRIMARY KEY,
+      visitor_id text,
+      profile_id uuid,
+      type text NOT NULL,
+      data jsonb NOT NULL DEFAULT '{}'::jsonb,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )`);
+
     await query(
       `CREATE INDEX IF NOT EXISTS idx_messages_visitor ON messages(visitor_id, created_at)`
     );
     await query(
       `CREATE INDEX IF NOT EXISTS idx_pi_visitor ON product_interests(visitor_id, created_at)`
+    );
+    await query(
+      `CREATE INDEX IF NOT EXISTS idx_events_type_time ON events(type, created_at)`
+    );
+    await query(
+      `CREATE INDEX IF NOT EXISTS idx_events_visitor ON events(visitor_id, created_at)`
     );
 
     logger.info({}, "db migrated");

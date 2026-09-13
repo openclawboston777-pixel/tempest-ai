@@ -3,6 +3,7 @@ import { getShopPolicies } from "./getShopPolicies.js";
 import { getOrderStatus } from "./getOrderStatus.js";
 import { submitSupportTicket } from "./submitSupportTicket.js";
 import { rememberCustomer, recordProductInterest } from "../memory/store.js";
+import { logEvent } from "../memory/analytics.js";
 import type { ToolContext } from "../providers/textProvider.js";
 import { logger } from "../logger.js";
 
@@ -141,6 +142,10 @@ async function executeToolImpl(
           query = "";
         }
         const products = await getProducts(query);
+        void logEvent(ctx?.sessionId, "product_search", {
+          query,
+          resultCount: products.length,
+        });
         return JSON.stringify({ products });
       }
       case "get_shop_policies": {
@@ -168,7 +173,11 @@ async function executeToolImpl(
         } catch {
           parsed = {};
         }
-        return await getOrderStatus(parsed);
+        const orderResult = await getOrderStatus(parsed);
+        void logEvent(ctx?.sessionId, "order_lookup", {
+          ok: !/error|unavailable|verification_failed/.test(orderResult),
+        });
+        return orderResult;
       }
       case "submit_support_ticket": {
         let parsed: {
@@ -194,7 +203,11 @@ async function executeToolImpl(
         } catch {
           parsed = {};
         }
-        return await submitSupportTicket(parsed);
+        const ticketResult = await submitSupportTicket(parsed);
+        void logEvent(ctx?.sessionId, "support_ticket", {
+          ok: /ticketId|"ok":true/.test(ticketResult),
+        });
+        return ticketResult;
       }
       case "remember_customer": {
         const sessionId = ctx?.sessionId;
@@ -219,6 +232,11 @@ async function executeToolImpl(
             ? (raw.preferences as Record<string, unknown>)
             : undefined;
         const result = await rememberCustomer(sessionId, { email, name, prefs });
+        void logEvent(sessionId, "profile_updated", {
+          hasName: !!name,
+          hasEmail: !!email,
+          prefKeys: prefs ? Object.keys(prefs).length : 0,
+        });
         if (Array.isArray(raw.interestedProducts)) {
           for (const t of raw.interestedProducts) {
             if (typeof t === "string" && t.trim()) {

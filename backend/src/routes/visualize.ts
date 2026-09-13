@@ -6,6 +6,7 @@ import { putObject, dateKey, sanitizeId } from "../storage/s3.js";
 import { getProducts } from "../tools/getProducts.js";
 import { visualizeRoom } from "../providers/geminiImageProvider.js";
 import { recordProductInterest } from "../memory/store.js";
+import { logEvent } from "../memory/analytics.js";
 
 const SESSION_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 
@@ -183,6 +184,7 @@ const visualizeRoutes: FastifyPluginAsync = async (app) => {
           productId: product.id,
           source: "visualized",
         });
+        void logEvent(id, "visualization", { productTitle: product.title });
 
         const rand = randomUUID().slice(0, 8);
         const base = `${config.s3Prefix}/visualize/${dateKey()}/${id}-${rand}`;
