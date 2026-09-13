@@ -5,21 +5,33 @@ import { STYLES } from "./styles";
 
 function makeWidgetSessionId(): string {
   // Persist an anonymous visitor id so a returning shopper (same browser) is
-  // recognized across visits. Falls back to an ephemeral id if storage is blocked.
+  // recognized across visits. The id is a capability that grants access to that
+  // visitor's stored memory, so it MUST be cryptographically unguessable — and
+  // we refuse to PERSIST a weak id (no secure RNG => ephemeral, memory disabled).
   const KEY = "tw_visitor_id";
-  const gen = () => {
-    const c = (globalThis as any).crypto;
+  const c = (globalThis as any).crypto as Crypto | undefined;
+  const secureId = (): string | null => {
     if (c && typeof c.randomUUID === "function") return c.randomUUID();
-    return "s-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+    if (c && typeof c.getRandomValues === "function") {
+      const b = new Uint8Array(16);
+      c.getRandomValues(b);
+      return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+    }
+    return null; // no CSPRNG available
   };
   try {
     const existing = window.localStorage.getItem(KEY);
     if (existing && /^[A-Za-z0-9_-]{1,64}$/.test(existing)) return existing;
-    const id = gen();
+    const id = secureId();
+    if (!id) {
+      // No secure randomness: use a non-persisted ephemeral id so we never store
+      // a guessable one. Cross-visit memory is disabled this session (acceptable).
+      return "eph-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    }
     window.localStorage.setItem(KEY, id);
     return id;
   } catch {
-    return gen();
+    return secureId() || "eph-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
   }
 }
 

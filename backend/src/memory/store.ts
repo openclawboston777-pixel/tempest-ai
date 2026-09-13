@@ -93,6 +93,9 @@ export async function recordProductInterest(
   }
 }
 
+// SECURITY: only call this AFTER the email has been verified (e.g. OTP) in the
+// current session. Linking a visitor to a profile by an UNVERIFIED email allows
+// identity takeover. rememberCustomer intentionally does NOT use this.
 export async function findOrCreateProfileByEmail(
   email: string,
   name?: string
@@ -141,37 +144,37 @@ export async function rememberCustomer(
   try {
     if (!visitorId || !VISITOR_RE.test(visitorId)) return { ok: false };
     await ensureVisitor(visitorId);
-    const prefsJson = JSON.stringify(data?.prefs ?? {});
 
     const hasName = typeof data?.name === "string" && data.name.trim().length > 0;
     const hasPrefs = data?.prefs && Object.keys(data.prefs).length > 0;
-    // Only treat email as identity if it's a real (non-placeholder) address.
-    const realEmail = data?.email && isRealEmail(data.email) ? data.email : undefined;
+    // A self-asserted email is NOT proof of identity. We store it only as an
+    // unverified contact attribute on THIS visitor's own profile — we never use
+    // it to look up or merge into another visitor's profile (that would allow
+    // identity takeover: claim victim@x.com -> inherit their data). Cross-device
+    // merge requires an out-of-band verification step (future: OTP), which would
+    // set the reserved unique `email` column.
+    const realEmail = data?.email && isRealEmail(data.email) ? data.email.trim().toLowerCase() : undefined;
     if (!realEmail && !hasName && !hasPrefs) return { ok: false };
 
-    // Resolve the profile to write to:
-    //  1) a known email -> find/create that identity and link (merges across devices)
-    //  2) otherwise -> the visitor's existing profile, or a fresh anonymous profile
-    let pid: string | null = null;
-    if (realEmail) {
-      pid = await findOrCreateProfileByEmail(realEmail, data.name);
-      if (pid) await linkVisitorToProfile(visitorId, pid);
-    }
+    // Build the prefs patch; fold the unverified email in as contact_email.
+    const prefsPatch: Record<string, unknown> = { ...(data?.prefs ?? {}) };
+    if (realEmail) prefsPatch.contact_email = realEmail;
+    const prefsJson = JSON.stringify(prefsPatch);
+
+    // Always operate on THIS visitor's own profile (create an anonymous one if
+    // needed). Never touch another visitor's profile.
+    const res = await query<{ profile_id: string | null }>(
+      `SELECT profile_id FROM visitors WHERE id=$1`,
+      [visitorId]
+    );
+    let pid = res?.rows?.[0]?.profile_id ?? null;
     if (!pid) {
-      const res = await query<{ profile_id: string | null }>(
-        `SELECT profile_id FROM visitors WHERE id=$1`,
-        [visitorId]
+      const created = await query<{ id: string }>(
+        `INSERT INTO profiles (name) VALUES ($1) RETURNING id`,
+        [hasName ? data.name : null]
       );
-      pid = res?.rows?.[0]?.profile_id ?? null;
-      if (!pid) {
-        // Create an anonymous profile so this visitor is remembered even without an email.
-        const created = await query<{ id: string }>(
-          `INSERT INTO profiles (name) VALUES ($1) RETURNING id`,
-          [hasName ? data.name : null]
-        );
-        pid = created?.rows?.[0]?.id ?? null;
-        if (pid) await linkVisitorToProfile(visitorId, pid);
-      }
+      pid = created?.rows?.[0]?.id ?? null;
+      if (pid) await linkVisitorToProfile(visitorId, pid);
     }
     if (!pid) return { ok: false };
 
