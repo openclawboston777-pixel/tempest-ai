@@ -18,7 +18,9 @@ const EnvSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_IMAGE_MODEL: z.string().default("gemini-3.1-flash-image"),
   VISUALIZE_MAX_PER_SESSION: z.coerce.number().int().positive().default(6),
+  VISUALIZE_MAX_PER_DAY: z.coerce.number().int().positive().default(300),
   VISUALIZE_MAX_UPLOAD_MB: z.coerce.number().positive().default(12),
+  VOICE_TOKENS_MAX_PER_DAY: z.coerce.number().int().positive().default(500),
 
   AWS_REGION: z.string().default("eu-north-1"),
   S3_BUCKET: z.string().optional(),
@@ -70,7 +72,9 @@ export const config = {
   geminiImageModel: env.GEMINI_IMAGE_MODEL,
   visualizeEnabled: Boolean(env.GEMINI_API_KEY),
   visualizeMaxPerSession: env.VISUALIZE_MAX_PER_SESSION,
+  visualizeMaxPerDay: env.VISUALIZE_MAX_PER_DAY,
   visualizeMaxUploadBytes: Math.round(env.VISUALIZE_MAX_UPLOAD_MB * 1024 * 1024),
+  voiceTokensMaxPerDay: env.VOICE_TOKENS_MAX_PER_DAY,
 
   awsRegion: env.AWS_REGION,
   s3Bucket: env.S3_BUCKET,

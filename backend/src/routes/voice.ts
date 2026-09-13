@@ -5,6 +5,7 @@ import type { VoiceProvider } from "../providers/voiceProvider.js";
 import { EMA_SYSTEM_PROMPT } from "../ema/systemPrompt.js";
 import { toolDefs, executeTool } from "../tools/index.js";
 import { config } from "../config.js";
+import { allow } from "../costGuard.js";
 import { logger } from "../logger.js";
 
 const toolBodySchema = z.object({
@@ -16,6 +17,11 @@ export const voiceRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/voice-token", async (_request, reply) => {
     try {
+      // Global daily cap on realtime-voice sessions (xAI minutes = cost).
+      if (!allow("voice_token", config.voiceTokensMaxPerDay)) {
+        reply.code(429).send({ error: "voice_daily_limit" });
+        return;
+      }
       const token = await provider.mintEphemeralToken();
       return {
         ...token,

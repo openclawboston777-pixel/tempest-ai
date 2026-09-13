@@ -7,6 +7,7 @@ import { getProducts } from "../tools/getProducts.js";
 import { visualizeRoom } from "../providers/geminiImageProvider.js";
 import { recordProductInterest } from "../memory/store.js";
 import { logEvent } from "../memory/analytics.js";
+import { allow } from "../costGuard.js";
 
 const SESSION_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 
@@ -148,6 +149,11 @@ const visualizeRoutes: FastifyPluginAsync = async (app) => {
         if (used >= config.visualizeMaxPerSession) {
           reply.code(429);
           return { ok: false, error: "visualize_limit_reached" };
+        }
+        // Global daily cost cap (backstop against runaway/abuse across sessions).
+        if (!allow("visualize", config.visualizeMaxPerDay)) {
+          reply.code(429);
+          return { ok: false, error: "visualize_daily_limit" };
         }
 
         const products = await getProducts(productQuery);

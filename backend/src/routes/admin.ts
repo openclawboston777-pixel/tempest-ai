@@ -2,6 +2,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { config } from "../config.js";
 import { logger } from "../logger.js";
 import { getAnalyticsSummary } from "../memory/analytics.js";
+import { usage } from "../costGuard.js";
 
 function requireAdmin(req: FastifyRequest, reply: FastifyReply): boolean {
   const adminToken = config.adminToken;
@@ -40,7 +41,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         const q = (req.query ?? {}) as Record<string, unknown>;
         const days = Number(q.days) || 7;
         const summary = await getAnalyticsSummary(days);
-        return summary;
+        return { ...summary, costGuardToday: usage() };
       } catch (err) {
         logger.error({ err }, "admin analytics failed");
         return reply.code(500).send({ error: "analytics_failed" });
