@@ -14,6 +14,7 @@ import supportRoutes from "./routes/support.js";
 import visualizeRoutes from "./routes/visualize.js";
 import memoryRoutes from "./routes/memory.js";
 import adminRoutes from "./routes/admin.js";
+import offerRoutes from "./routes/offer.js";
 import { migrate } from "./db/pool.js";
 import { purgeExpired as purgeMemory } from "./memory/store.js";
 
@@ -108,6 +109,7 @@ export async function buildApp() {
   await app.register(visualizeRoutes);
   await app.register(memoryRoutes);
   await app.register(adminRoutes);
+  await app.register(offerRoutes);
 
   // Customer-memory schema (best-effort; no-op when DB disabled, never throws).
   await migrate();

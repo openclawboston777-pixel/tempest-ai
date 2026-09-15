@@ -38,7 +38,9 @@ const EnvSchema = z.object({
   OFFER_DEAL_LOCK_MINUTES: z.coerce.number().int().positive().default(20),
   OFFER_COMEBACK_CREDIT_DAYS: z.coerce.number().int().positive().default(30),
   OFFER_CODE_PREFIX: z.string().default("EMA"),
-  FINANCING_ENABLED: z.coerce.boolean().default(false),
+  // Financing is presented at CHECKOUT (Shop Pay installments, Affirm) — Ema
+  // describes it, she does NOT create a code for it. Comma-separated provider ids.
+  FINANCING_PROVIDERS: z.string().default("shop_pay,affirm"),
 
   PORT: z.coerce.number().int().positive().default(8080),
   CORS_ORIGIN: z.string().default("*"),
@@ -101,7 +103,8 @@ export const config = {
   offerDealLockMinutes: env.OFFER_DEAL_LOCK_MINUTES,
   offerComebackCreditDays: env.OFFER_COMEBACK_CREDIT_DAYS,
   offerCodePrefix: env.OFFER_CODE_PREFIX,
-  financingEnabled: env.FINANCING_ENABLED,
+  financingProviders: env.FINANCING_PROVIDERS.split(",").map((s) => s.trim()).filter(Boolean),
+  financingEnabled: env.FINANCING_PROVIDERS.trim().length > 0,
 
   port: env.PORT,
   corsOrigin: env.CORS_ORIGIN,

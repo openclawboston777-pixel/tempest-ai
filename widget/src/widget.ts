@@ -1,6 +1,7 @@
 import { VoiceSession } from "./voice.js";
 import { Proactive } from "./proactive.js";
 import { VisualizePanel } from "./visualize.js";
+import { DealLock } from "./dealLock.js";
 import { STYLES } from "./styles";
 
 function makeWidgetSessionId(): string {
@@ -103,6 +104,7 @@ class TempestWidget {
   private voice!: VoiceSession;
   private voiceBtn?: HTMLButtonElement;
   private visualize?: VisualizePanel;
+  private dealLock?: DealLock;
   private sessionId = makeWidgetSessionId();
   private firstOpened = false;
   private proactive?: Proactive;
@@ -226,11 +228,19 @@ class TempestWidget {
     footer.appendChild(voiceBtn);
     footer.appendChild(this.sendBtn);
 
+    // Pinned mount point for the Deal Lock countdown (between header and messages).
+    const dealLockMount = document.createElement("div");
+    dealLockMount.className = "tw-deallock-mount";
+
     this.panel.appendChild(handle);
     this.panel.appendChild(header);
+    this.panel.appendChild(dealLockMount);
     this.panel.appendChild(this.messagesEl);
     this.panel.appendChild(footer);
     this.root.appendChild(this.panel);
+
+    this.dealLock = new DealLock(CFG.backendUrl, this.sessionId, dealLockMount);
+    this.dealLock.start();
 
     // Greeting
     this.addMessage("ai", `Hi! I'm ${CFG.assistantName}. How can I help you today?`);

@@ -114,6 +114,10 @@ export class VoiceSession {
   private aiTurnText = "";
   private aiTurnEmitted = false;
 
+  // Inactivity cutoff: end the paid voice session after 90s of no customer speech.
+  private inactivityTimer: number | null = null;
+  private static readonly INACTIVITY_MS = 90000;
+
   constructor(backendUrl: string, container: HTMLElement, opts?: VoiceSessionOpts) {
     this.backendUrl = backendUrl;
     this.container = container;
@@ -134,6 +138,25 @@ export class VoiceSession {
     } catch {
       /* ignore */
     }
+  }
+
+  private clearInactivity(): void {
+    if (this.inactivityTimer !== null) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
+  }
+
+  // Restart the 90s no-response countdown. Called whenever there's activity
+  // (session start, customer speaks, Ema finishes a turn).
+  private resetInactivity(): void {
+    this.clearInactivity();
+    this.inactivityTimer = window.setTimeout(() => {
+      if (this.active) {
+        this.setStatus("Ended — tap to talk again");
+        this.stop();
+      }
+    }, VoiceSession.INACTIVITY_MS);
   }
 
   private emitTranscript(role: "user" | "ai", text: string): void {
@@ -253,6 +276,7 @@ export class VoiceSession {
   async start(): Promise<void> {
     this.stopped = false;
     this.active = true;
+    this.resetInactivity();
     this.sessionId = makeSessionId();
     this.transcript = [];
     this.chunks = [];
@@ -503,11 +527,13 @@ export class VoiceSession {
         }
         case "response.done": {
           this.flushAiTurn();
+          this.resetInactivity();
           break;
         }
 
         case "input_audio_buffer.speech_started": {
           this.setStatus("Listening…");
+          this.resetInactivity();
           break;
         }
         case "input_audio_buffer.speech_stopped": {
@@ -676,6 +702,7 @@ export class VoiceSession {
     const wasActive = this.active || !!this.recorder || this.transcript.length > 0;
     this.stopped = true;
     this.active = false;
+    this.clearInactivity();
 
     // Flush any pending partial transcripts before finalizing.
     try {

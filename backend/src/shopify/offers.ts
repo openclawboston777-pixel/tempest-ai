@@ -152,8 +152,26 @@ export async function createOffer(input: {
     const amount = Math.max(0, round2(Number(input.amount) || 0));
 
     if (kind === "flex_pay") {
+      // Financing is a CHECKOUT option (Shop Pay installments / Affirm), not a
+      // discount code. Return a describe payload so Ema can present it truthfully.
       if (!config.financingEnabled) return { ok: false, error: "financing_not_configured" };
-      return { ok: false, error: "financing_manual" };
+      const names = config.financingProviders
+        .map((p) =>
+          p === "shop_pay"
+            ? "Shop Pay (split into installments)"
+            : p === "affirm"
+              ? "Affirm (monthly payments)"
+              : p,
+        )
+        .join(" or ");
+      return {
+        ok: true,
+        kind: "flex_pay",
+        note:
+          `Financing is available at checkout when you're eligible: ${names}. ` +
+          `It lets you spread the cost over time instead of paying it all up front. ` +
+          `You choose it on the payment step — I can't apply it for you, but it's there.`,
+      };
     }
 
     const econ = await getProductEconomics(input.productQuery);
