@@ -10,8 +10,14 @@ interface VoiceToken {
   model?: string;
   instructions?: string;
   voice?: string;
+  replace?: Record<string, string>;
   tools?: ChatTool[];
 }
+
+// Slightly faster playback so Ema doesn't sound slow. The realtime API has no
+// native speed param, so we speed up the audio client-side. >1 raises pitch a
+// little; keep it modest. Tunable.
+const VOICE_PLAYBACK_RATE = 1.15;
 
 interface ChatTool {
   type: string;
@@ -360,6 +366,7 @@ export class VoiceSession {
               session: {
                 voice: tokenData.voice || "eve",
                 instructions,
+                ...(tokenData.replace ? { replace: tokenData.replace } : {}),
                 turn_detection: { type: "server_vad" },
                 audio: {
                   input: {
@@ -606,6 +613,11 @@ export class VoiceSession {
     }
     const source = audioCtx.createBufferSource();
     source.buffer = buf;
+    try {
+      source.playbackRate.value = VOICE_PLAYBACK_RATE;
+    } catch {
+      /* ignore */
+    }
     source.connect(audioCtx.destination);
     if (this.dest) {
       try {
@@ -616,7 +628,9 @@ export class VoiceSession {
     }
     const startAt = Math.max(audioCtx.currentTime, this.nextTime);
     source.start(startAt);
-    this.nextTime = startAt + buf.duration;
+    // Effective duration shrinks with playbackRate — advance the schedule cursor
+    // by the sped-up duration so chunks stay gapless and don't overlap.
+    this.nextTime = startAt + buf.duration / VOICE_PLAYBACK_RATE;
   }
 
   private handleError(err: unknown): void {

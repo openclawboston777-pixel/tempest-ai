@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { XaiVoiceProvider } from "../providers/xaiVoiceProvider.js";
 import type { VoiceProvider } from "../providers/voiceProvider.js";
-import { EMA_SYSTEM_PROMPT } from "../ema/systemPrompt.js";
+import { EMA_VOICE_INSTRUCTIONS } from "../ema/systemPrompt.js";
 import { toolDefs, executeTool } from "../tools/index.js";
 import { config } from "../config.js";
 import { allow } from "../costGuard.js";
@@ -26,9 +26,10 @@ export const voiceRoutes: FastifyPluginAsync = async (app) => {
       return {
         ...token,
         voice: config.xaiVoice,
-        instructions:
-          EMA_SYSTEM_PROMPT +
-          "\n\nYou are speaking out loud in a voice conversation. Keep replies short, natural, and conversational.",
+        instructions: EMA_VOICE_INSTRUCTIONS,
+        // Spoken-form fixes applied before TTS (transcript keeps the original).
+        // "Ema" -> "Emma" so it's pronounced "EH-mah", not "EE-ma".
+        replace: { Ema: "Emma" },
         tools: toolDefs,
       };
     } catch (err) {
