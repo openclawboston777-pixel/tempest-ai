@@ -1,3 +1,17 @@
+# Morning brief — Offer engine hardening + Deal Lock + conversational review (2026-09-15 pm)
+
+## Done
+- **Financing = real checkout options** (Shop Pay installments / Affirm), described truthfully by Ema — not a fake discount. (Confirm Affirm is actually enabled in your Shopify payment settings; Shop Pay installments works with Shopify Payments.)
+- **Offer engine thoroughly tested & hardened.** Fixed a real bug where Ema *fabricated* codes (e.g. "ARTEM-4900") — she now must call the tool; every code is a real, margin-checked Shopify code. Verified across boundaries: over-limit → **no code**; she meets the customer's target with the **smallest** discount (no giving away extra margin); final price never dips below the floor. Deal-lock codes self-expire in 20 min.
+- **Deal Lock countdown** live in the widget — a real ticking timer that survives refresh (server-driven), with the price, code, and a Checkout button. Browser-verified.
+- **90-second voice inactivity cutoff** (ends the paid voice session automatically).
+
+## Conversational review (you asked "what makes her sound less human?")
+Fixed: bullet-point/bold spam, repeated recaps, tool-narration ("let me pull that up"), stacked questions. She's now accurate, honest, follows the phase order, collects contact info, and negotiates with real margin-safe offers.
+**One residual tic:** `grok-4.20-non-reasoning` (picked for speed) stubbornly opens ~7/10 replies with "Got it, Marcus" despite explicit bans. **Recommendation:** run the *sales conversation* on a stronger model (e.g. grok-4.6 / a reasoning model) — it will follow the nuanced style + phase logic far better and kill the tic. Fast simple Q&A can stay on the current model. Want me to switch it?
+
+---
+
 # Morning brief — Ema Sales Brain + Offer Engine (2026-09-15)
 
 Your word-for-word sales prompt is now Ema's brain, and she's equipped with the backend abilities to
