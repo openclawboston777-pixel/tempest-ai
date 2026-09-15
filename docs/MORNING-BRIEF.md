@@ -1,3 +1,44 @@
+# Morning brief — Ema Sales Brain + Offer Engine (2026-09-15)
+
+Your word-for-word sales prompt is now Ema's brain, and she's equipped with the backend abilities to
+execute it. Live at `https://srv1861529.hstgr.cloud:9443/demo`, branch `slice1-widget`.
+
+## ✅ Built this session
+- **Your sales prompt embedded VERBATIM** (Phase 1 → Loops, offer structure, all rules) as Ema's guide,
+  plus a capabilities layer that maps it to her real tools. Verified she opens exactly with
+  *"Hey, I'm Ema. What's your name?"* and runs the process.
+- **Offer engine with your hard money rules, enforced in the backend (not the LLM):** before any
+  discount Ema calls `get_product_economics` (uses real product cost + your $1,000 shipping allowance +
+  $500 min profit to compute the max allowed discount); `create_offer` then creates a **real Shopify
+  discount code** with a **genuine 20-minute Deal Lock** and a one-click cart checkout link. **Grok
+  physically cannot invent or exceed a discount** — verified: an over-limit request is rejected with no
+  code; a within-limit $300 offer created a live ACTIVE code (Artemitize → $4,935, expires in 20 min).
+- **Favorites** (save / list / mark finalist-eliminated-chosen) and **phone + criteria capture** so the
+  narrowing and contact phases work and persist across visits.
+- **Offer types** wired: final_lock / personal_win / room_builder (immediate $ off), comeback_credit
+  (future credit), flex_pay (financing).
+
+## 🔎 My review of your prompt (kept word-for-word; these are notes, not changes)
+- **Financing ("The Flex Pay")** has no payment provider connected yet, so Ema can't truthfully *execute*
+  it — right now she'll describe/deflect rather than promise financing. To make it real we need a provider
+  (Shop Pay Installments / Affirm / Klarna). Tell me which and I'll wire it.
+- **Deal Lock countdown**: the backend timer is genuine (the code literally expires in 20 min). The
+  *visual* persistent countdown in the chat UI is the remaining piece — I'll build it next.
+- **Voice speed ramp (1.2x→1.5x during looping)**: that's a live-voice TTS setting; I've instructed it,
+  but true dynamic rate control depends on the voice provider — may need tuning.
+- **"Worst case we just ship you a new one"** (Loop 2): Ema will verify this against your real
+  return/warranty page before saying it — make sure that page states it, or soften the line.
+- **90-second inactivity cutoff** and the **favorites "save" button** are UI pieces still to add (Ema
+  currently records favorites when the customer names them).
+
+## Needs you
+1. **Financing provider** decision (for Flex Pay) — or I keep it disabled and Ema won't promise it.
+2. Confirm you're OK that `create_offer` creates **real live discount codes** on the store (it does now,
+   margin-protected; test codes self-expire in 20 min).
+3. Gemini key hardening (billing + API restriction + budget cap) still pending from before.
+
+---
+
 # Morning brief — overnight session (2026-09-11)
 
 Built via **Copilot Opus 5** (bulk gen) + Claude (architecture/review/test). All verified server-side,
