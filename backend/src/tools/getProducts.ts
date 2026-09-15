@@ -5,22 +5,25 @@ export interface ProductVariant {
   title: string;
   price: string;
   available: boolean;
+  quantityAvailable?: number | null;
 }
 
 export interface Product {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   price: string;
   currency: string;
   available: boolean;
+  quantityAvailable?: number | null;
   url: string;
-  variants: ProductVariant[];
+  image?: string;
+  variants?: ProductVariant[];
 }
 
 const PRODUCTS_QUERY = `
   query Products($q: String!) {
-    products(first: 5, query: $q) {
+    products(first: 10, query: $q) {
       edges {
         node {
           id
@@ -28,6 +31,10 @@ const PRODUCTS_QUERY = `
           description
           onlineStoreUrl
           availableForSale
+          totalInventory
+          featuredImage {
+            url
+          }
           priceRange {
             minVariantPrice {
               amount
@@ -39,10 +46,75 @@ const PRODUCTS_QUERY = `
               node {
                 title
                 availableForSale
+                quantityAvailable
                 price {
                   amount
                   currencyCode
                 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const CHEAPEST_PRODUCTS_QUERY = `
+  query CheapestProducts {
+    products(first: 60, sortKey: PRICE) {
+      edges {
+        node {
+          id
+          title
+          onlineStoreUrl
+          availableForSale
+          totalInventory
+          featuredImage {
+            url
+          }
+          priceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+          variants(first: 10) {
+            edges {
+              node {
+                availableForSale
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const EXPENSIVE_PRODUCTS_QUERY = `
+  query ExpensiveProducts {
+    products(first: 60, sortKey: PRICE, reverse: true) {
+      edges {
+        node {
+          id
+          title
+          onlineStoreUrl
+          availableForSale
+          totalInventory
+          featuredImage {
+            url
+          }
+          priceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+          variants(first: 10) {
+            edges {
+              node {
+                availableForSale
               }
             }
           }
@@ -60,13 +132,20 @@ interface GqlMoney {
 interface GqlProductNode {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   onlineStoreUrl: string | null;
   availableForSale?: boolean;
+  totalInventory?: number | null;
+  featuredImage?: { url?: string } | null;
   priceRange: { minVariantPrice: GqlMoney };
   variants: {
     edges: Array<{
-      node: { title: string; availableForSale: boolean; price: GqlMoney };
+      node: {
+        title?: string;
+        availableForSale: boolean;
+        quantityAvailable?: number | null;
+        price?: GqlMoney;
+      };
     }>;
   };
 }
@@ -76,6 +155,36 @@ interface GqlResponse {
     products?: { edges?: Array<{ node: GqlProductNode }> };
   };
   errors?: unknown;
+}
+
+export function cleanDescription(raw: string): string {
+  let text = typeof raw === "string" ? raw : "";
+  if (!text) return "";
+
+  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ");
+  text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ");
+
+  text = text.replace(/<[^>]*>/g, " ");
+
+  text = text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+
+  text = text.replace(
+    /\b[A-Z][A-Za-z]+(?: [A-Z][A-Za-z]+)*\s*#[A-Za-z0-9_]+#/g,
+    " ",
+  );
+  text = text.replace(/#[A-Za-z0-9_]+#/g, " ");
+
+  text = text.replace(/\.[-\w]+\s*\{[^}]*\}/g, " ");
+
+  text = text.replace(/\s+/g, " ").trim();
+
+  return text.slice(0, 2000);
 }
 
 function mockProducts(query: string): Product[] {
@@ -107,12 +216,18 @@ function mockProducts(query: string): Product[] {
   ];
 }
 
-function mapNode(node: GqlProductNode): Product {
+function parsePrice(amount: string | undefined): number {
+  const n = Number.parseFloat(amount ?? "");
+  return Number.isFinite(n) ? n : 0;
+}
+
+function mapNodeFull(node: GqlProductNode): Product {
   const min = node.priceRange?.minVariantPrice;
   const variants = (node.variants?.edges ?? []).map((e) => ({
-    title: e.node.title,
+    title: e.node.title ?? "",
     price: e.node.price?.amount ?? "0.00",
     available: Boolean(e.node.availableForSale),
+    quantityAvailable: e.node.quantityAvailable ?? null,
   }));
   const available =
     typeof node.availableForSale === "boolean"
@@ -121,13 +236,111 @@ function mapNode(node: GqlProductNode): Product {
   return {
     id: node.id,
     title: node.title,
-    description: node.description ?? "",
+    description: cleanDescription(node.description ?? ""),
     price: min?.amount ?? "0.00",
     currency: min?.currencyCode ?? "USD",
     available,
+    quantityAvailable: node.totalInventory ?? null,
     url: node.onlineStoreUrl ?? "",
+    image: node.featuredImage?.url ?? "",
     variants,
   };
+}
+
+function mapNodeCompact(node: GqlProductNode): Product {
+  const min = node.priceRange?.minVariantPrice;
+  const variantsAvailable = (node.variants?.edges ?? []).some((e) =>
+    Boolean(e.node.availableForSale),
+  );
+  const available =
+    typeof node.availableForSale === "boolean"
+      ? node.availableForSale
+      : variantsAvailable;
+  return {
+    id: node.id,
+    title: node.title,
+    price: min?.amount ?? "0.00",
+    currency: min?.currencyCode ?? "USD",
+    available,
+    quantityAvailable: node.totalInventory ?? null,
+    url: node.onlineStoreUrl ?? "",
+    image: node.featuredImage?.url ?? "",
+  };
+}
+
+function buildSearchQuery(rawQuery: string): string {
+  const term = rawQuery.trim().toLowerCase();
+  const singular = term.endsWith("s") ? term.slice(0, -1) : term;
+
+  const parts: string[] = [];
+  parts.push(term);
+  if (singular !== term) {
+    parts.push(singular);
+  }
+  parts.push(`title:*${singular}*`);
+  parts.push(`product_type:*${singular}*`);
+  parts.push(`tag:*${singular}*`);
+
+  return parts.join(" OR ");
+}
+
+function endpointUrl(): string {
+  return `https://${config.shopifyStoreDomain}/api/${config.shopifyApiVersion}/graphql.json`;
+}
+
+async function runQuery(
+  body: Record<string, unknown>,
+): Promise<GqlProductNode[] | null> {
+  const res = await fetch(endpointUrl(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Shopify-Storefront-Private-Token": config.shopifyStorefrontToken as string,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    logger.error(
+      { status: res.status },
+      "getProducts: Shopify Storefront request failed",
+    );
+    return null;
+  }
+
+  const json = (await res.json()) as GqlResponse;
+  if (json.errors) {
+    logger.error({ errors: json.errors }, "getProducts: Shopify GraphQL errors");
+    return null;
+  }
+
+  return (json.data?.products?.edges ?? []).map((e) => e.node);
+}
+
+async function getBroadProducts(): Promise<Product[]> {
+  const [cheapest, expensive] = await Promise.all([
+    runQuery({ query: CHEAPEST_PRODUCTS_QUERY }),
+    runQuery({ query: EXPENSIVE_PRODUCTS_QUERY }),
+  ]);
+
+  if (cheapest === null && expensive === null) {
+    return [];
+  }
+
+  const byId = new Map<string, Product>();
+  for (const node of [...(cheapest ?? []), ...(expensive ?? [])]) {
+    if (!byId.has(node.id)) {
+      byId.set(node.id, mapNodeCompact(node));
+    }
+  }
+
+  const merged = Array.from(byId.values());
+  merged.sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
+
+  if (merged.length === 0) {
+    logger.info({ broad: true }, "getProducts: no products matched");
+  }
+  return merged;
 }
 
 export async function getProducts(query: string): Promise<Product[]> {
@@ -136,38 +349,28 @@ export async function getProducts(query: string): Promise<Product[]> {
     return mockProducts(query);
   }
 
-  const endpoint = `https://${config.shopifyStoreDomain}/api/${config.shopifyApiVersion}/graphql.json`;
+  const isBroad = query.trim().length === 0;
 
   try {
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Shopify-Storefront-Private-Token": config.shopifyStorefrontToken as string,
-      },
-      body: JSON.stringify({
-        query: PRODUCTS_QUERY,
-        variables: { q: query },
-      }),
+    if (isBroad) {
+      return await getBroadProducts();
+    }
+
+    const nodes = await runQuery({
+      query: PRODUCTS_QUERY,
+      variables: { q: buildSearchQuery(query) },
     });
 
-    if (!res.ok) {
-      logger.error(
-        { status: res.status },
-        "getProducts: Shopify Storefront request failed",
-      );
+    if (nodes === null) {
       return [];
     }
 
-    const json = (await res.json()) as GqlResponse;
-
-    if (json.errors) {
-      logger.error({ errors: json.errors }, "getProducts: Shopify GraphQL errors");
+    if (nodes.length === 0) {
+      logger.info({ query, broad: false }, "getProducts: no products matched");
       return [];
     }
 
-    const edges = json.data?.products?.edges ?? [];
-    return edges.map((e) => mapNode(e.node));
+    return nodes.map((node) => mapNodeFull(node));
   } catch (err) {
     logger.error({ err }, "getProducts: unexpected error");
     return [];
