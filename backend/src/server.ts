@@ -21,7 +21,41 @@ import { purgeExpired as purgeMemory } from "./memory/store.js";
 export async function buildApp() {
   const app = Fastify({ logger: false, bodyLimit: 25 * 1024 * 1024 });
 
-  await app.register(cors, { origin: config.corsOrigin });
+  // CORS: "*" allows all; otherwise a comma-separated allowlist of origins/hosts.
+  // Entries may be full origins (https://x.com), bare hosts (x.com), or wildcard
+  // suffixes (*.myshopify.com). Same-origin requests (no Origin header) always pass.
+  const corsOption: import("@fastify/cors").FastifyCorsOptions["origin"] =
+    config.corsOrigin.trim() === "*"
+      ? "*"
+      : (origin, cb) => {
+          if (!origin) return cb(null, true); // same-origin / non-browser
+          let host = "";
+          try {
+            host = new URL(origin).hostname.toLowerCase();
+          } catch {
+            return cb(null, false);
+          }
+          const allow = config.corsOrigin
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .some((entry) => {
+              const e = entry.toLowerCase();
+              if (e.startsWith("*.")) {
+                const base = e.slice(2);
+                return host === base || host.endsWith("." + base);
+              }
+              let eh = e;
+              try {
+                eh = new URL(e).hostname.toLowerCase();
+              } catch {
+                /* bare host */
+              }
+              return host === eh;
+            });
+          return cb(null, allow);
+        };
+  await app.register(cors, { origin: corsOption });
 
   // Global rate limit; /voice-token is intended to be stricter (see note).
   await app.register(rateLimit, {

@@ -1,3 +1,16 @@
+# Update — Liora voice, grok-4.20 + tic fix, production domain/CORS (2026-09-15)
+
+- **Voice = Liora** (calm, grounded, luminous) — set live. Voice runs on the separate speech-to-speech model; test by tapping the mic.
+- **Text model = grok-4.20** (fast ~2s) with a server-side **opener sanitizer** that removes grok's stubborn "Got it, <name>" opener — verified 0 occurrences across 30 replies; openers now varied/human. Offer engine + eval intact. (No latency tool needed — 4.20 is already fast; the tic was a style issue, now fixed deterministically.)
+- **Production domain (customer-facing, professional):** configured Caddy for **https://ema.tempestfurnitur.com** (standard 443, auto-HTTPS) -> the Ema backend. **ACTION NEEDED (you):** add ONE DNS record where tempestfurnitur.com DNS is managed:  A  ema  ->  72.60.67.27  (or CNAME ema -> srv1861529.hstgr.cloud). TLS auto-provisions within ~1 min after that.
+- **CORS locked** from "*" to an allowlist: tempestfurnitur.com, *.tempestfurnitur.com, *.myshopify.com, *.hstgr.cloud. Verified allow/deny; demo unaffected.
+- **Shopify embed (use after DNS is live):**
+  <script>window.TempestConfig={backendUrl:"https://ema.tempestfurnitur.com"};</script>
+  <script src="https://ema.tempestfurnitur.com/embed.js" defer></script>
+  (Until DNS is set you can test with backendUrl "https://srv1861529.hstgr.cloud:9443".)
+
+---
+
 # Morning brief — Offer engine hardening + Deal Lock + conversational review (2026-09-15 pm)
 
 ## Done
