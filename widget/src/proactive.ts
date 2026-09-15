@@ -1,21 +1,37 @@
 /**
  * Proactive text-message bubbles (Phase 2)
- * Shows at most 2 gentle "text message" style bubbles above the launcher
- * when the visitor has been idle and has not opened the chat.
+ * Shows gentle "text message" style bubbles above the launcher when the visitor
+ * is idle and hasn't opened the chat. A single escalating timeline: two openers
+ * (~6s), then witty follow-ups at +30s, +4min, +5min. Stops the moment the
+ * visitor opens or dismisses the chat.
  *
  * Zero dependencies. Never throws.
  */
 
-const IDLE_MS = 8000;        // delay before first bubble
-const SECOND_MS = 5000;      // delay between bubble 1 and bubble 2
 const VISIBLE_MS = 8000;     // how long each bubble stays visible
-const COOLDOWN_MS = 90000;   // wait before attempting another sequence
-const MAX_SEQUENCES = 2;     // per session
 const MAX_VISIBLE = 2;       // HARD rule: never more than 2 bubbles at once
 
-const DEFAULT_MESSAGES: string[] = [
+// Absolute offsets from page load for each message in the timeline (ms).
+// Openers first (fire ~6s in), then three follow-ups spaced out for a shopper
+// who hasn't responded: +30s after the openers, then +4min, then +5min.
+const SCHEDULE_MS: number[] = [
+  6000,     // opener 1
+  10000,    // opener 2
+  40000,    // follow-up 1  (~30s after openers)
+  280000,   // follow-up 2  (~4 min later)
+  580000,   // follow-up 3  (~5 min later)
+];
+
+const DEFAULT_OPENERS: string[] = [
   "Looking for something specific? I can help \u{1F44B}",
   "Happy to help you find the perfect piece \u2014 just ask.",
+];
+
+// Witty, low-pressure nudges for a shopper who's gone quiet.
+const DEFAULT_FOLLOWUPS: string[] = [
+  "Still browsing? I promise I'm more helpful than the average sales guy \u2014 and I don't work on commission \u{1F60F}",
+  "No rush! Fun trick though: I can drop any of these couches into a photo of your actual room \u{1F6CB}\u{FE0F}\u{1F4F8}",
+  "Okay, I'll stop hovering \u{1F605} \u2014 but I'm right here if you want a hand finding the one.",
 ];
 
 export interface ProactiveOptions {
@@ -44,7 +60,6 @@ export class Proactive {
 
   private suppressed = false;
   private started = false;
-  private sequenceCount = 0;
 
   constructor(
     launcher: HTMLElement,
@@ -66,7 +81,15 @@ export class Proactive {
     safe(() => {
       if (this.started || this.suppressed) return;
       this.started = true;
-      this.scheduleSequence(IDLE_MS);
+      // Schedule the full escalating timeline up front. Each fires only if the
+      // chat is still unopened and not dismissed; opening/dismissing clears them.
+      this.messages.forEach((text, i) => {
+        const at = SCHEDULE_MS[i];
+        if (typeof at !== "number" || !text) return;
+        this.addTimer(() => {
+          if (this.canShow()) this.showBubble(text);
+        }, at);
+      });
     });
   }
 
@@ -90,28 +113,31 @@ export class Proactive {
   /* ------------------------------------------------------------------ */
 
   private resolveMessages(opts?: ProactiveOptions): string[] {
-    let list: string[] = DEFAULT_MESSAGES.slice();
+    // Full timeline = openers + witty follow-ups. Either can be overridden via
+    // window.TempestConfig (proactiveMessages / proactiveFollowups) or opts.messages.
+    let openers: string[] = DEFAULT_OPENERS.slice();
+    let followups: string[] = DEFAULT_FOLLOWUPS.slice();
+    const clean = (v: unknown): string[] =>
+      Array.isArray(v) ? v.filter((m): m is string => typeof m === "string" && m.trim().length > 0) : [];
     try {
-      const cfg = (window as unknown as { TempestConfig?: { proactiveMessages?: unknown } })
-        .TempestConfig;
-      const fromCfg = cfg && cfg.proactiveMessages;
-      if (Array.isArray(fromCfg)) {
-        const clean = fromCfg.filter(
-          (m): m is string => typeof m === "string" && m.trim().length > 0
-        );
-        if (clean.length) list = clean;
+      const cfg = (window as unknown as {
+        TempestConfig?: { proactiveMessages?: unknown; proactiveFollowups?: unknown };
+      }).TempestConfig;
+      if (cfg) {
+        const o = clean(cfg.proactiveMessages);
+        if (o.length) openers = o;
+        const f = clean(cfg.proactiveFollowups);
+        if (f.length) followups = f;
       }
     } catch {
       /* ignore */
     }
     if (opts && Array.isArray(opts.messages)) {
-      const clean = opts.messages.filter(
-        (m): m is string => typeof m === "string" && m.trim().length > 0
-      );
-      if (clean.length) list = clean;
+      const o = clean(opts.messages);
+      if (o.length) openers = o;
     }
-    // Hard cap: only ever two per sequence.
-    return list.slice(0, MAX_VISIBLE);
+    // Combine and cap to the number of scheduled slots.
+    return openers.concat(followups).slice(0, SCHEDULE_MS.length);
   }
 
   private isChatOpen(): boolean {
@@ -163,44 +189,8 @@ export class Proactive {
   }
 
   /* ------------------------------------------------------------------ */
-  /* Sequencing                                                          */
+  /* Bubbles                                                             */
   /* ------------------------------------------------------------------ */
-
-  private scheduleSequence(delay: number): void {
-    if (this.suppressed) return;
-    if (this.sequenceCount >= MAX_SEQUENCES) return;
-
-    this.addTimer(() => this.runSequence(), delay);
-  }
-
-  private runSequence(): void {
-    if (!this.canShow()) {
-      // Chat open right now — try again after cooldown (if budget remains).
-      this.scheduleSequence(COOLDOWN_MS);
-      return;
-    }
-    if (this.sequenceCount >= MAX_SEQUENCES) return;
-    this.sequenceCount += 1;
-
-    const first = this.messages[0];
-    const second = this.messages[1];
-
-    if (first) this.showBubble(first);
-
-    if (second) {
-      this.addTimer(() => {
-        if (!this.canShow()) return;
-        this.showBubble(second);
-      }, SECOND_MS);
-    }
-
-    // End of sequence: hide everything, then cooldown before another attempt.
-    const endAt = (second ? SECOND_MS : 0) + VISIBLE_MS;
-    this.addTimer(() => {
-      this.hideAll(true);
-      this.scheduleSequence(COOLDOWN_MS);
-    }, endAt);
-  }
 
   private showBubble(text: string): void {
     if (!this.canShow()) return;
