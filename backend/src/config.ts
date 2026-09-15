@@ -32,6 +32,14 @@ const EnvSchema = z.object({
   MEMORY_RETENTION_DAYS: z.coerce.number().int().positive().default(365),
   ADMIN_TOKEN: z.string().optional(),
 
+  // Offer engine (hard money rules from the sales prompt)
+  OFFER_SHIPPING_ALLOWANCE: z.coerce.number().nonnegative().default(1000),
+  OFFER_MIN_GROSS_PROFIT: z.coerce.number().nonnegative().default(500),
+  OFFER_DEAL_LOCK_MINUTES: z.coerce.number().int().positive().default(20),
+  OFFER_COMEBACK_CREDIT_DAYS: z.coerce.number().int().positive().default(30),
+  OFFER_CODE_PREFIX: z.string().default("EMA"),
+  FINANCING_ENABLED: z.coerce.boolean().default(false),
+
   PORT: z.coerce.number().int().positive().default(8080),
   CORS_ORIGIN: z.string().default("*"),
 });
@@ -87,6 +95,13 @@ export const config = {
   dbEnabled: Boolean(env.DATABASE_URL),
   memoryRetentionDays: env.MEMORY_RETENTION_DAYS,
   adminToken: env.ADMIN_TOKEN,
+
+  offerShippingAllowance: env.OFFER_SHIPPING_ALLOWANCE,
+  offerMinGrossProfit: env.OFFER_MIN_GROSS_PROFIT,
+  offerDealLockMinutes: env.OFFER_DEAL_LOCK_MINUTES,
+  offerComebackCreditDays: env.OFFER_COMEBACK_CREDIT_DAYS,
+  offerCodePrefix: env.OFFER_CODE_PREFIX,
+  financingEnabled: env.FINANCING_ENABLED,
 
   port: env.PORT,
   corsOrigin: env.CORS_ORIGIN,

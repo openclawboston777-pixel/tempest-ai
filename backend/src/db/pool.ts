@@ -84,6 +84,35 @@ export async function migrate(): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now()
     )`);
 
+    await query(`CREATE TABLE IF NOT EXISTS favorites (
+      id bigserial PRIMARY KEY,
+      visitor_id text,
+      profile_id uuid,
+      product_title text NOT NULL,
+      product_id text,
+      note text,
+      status text NOT NULL DEFAULT 'saved',
+      created_at timestamptz NOT NULL DEFAULT now()
+    )`);
+
+    await query(`CREATE TABLE IF NOT EXISTS offers (
+      id bigserial PRIMARY KEY,
+      visitor_id text,
+      profile_id uuid,
+      kind text NOT NULL,
+      product_title text,
+      product_id text,
+      selling_price numeric,
+      cost numeric,
+      discount_amount numeric,
+      final_price numeric,
+      code text,
+      checkout_url text,
+      status text NOT NULL DEFAULT 'active',
+      expires_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )`);
+
     await query(`CREATE TABLE IF NOT EXISTS events (
       id bigserial PRIMARY KEY,
       visitor_id text,
@@ -104,6 +133,12 @@ export async function migrate(): Promise<void> {
     );
     await query(
       `CREATE INDEX IF NOT EXISTS idx_events_visitor ON events(visitor_id, created_at)`
+    );
+    await query(
+      `CREATE INDEX IF NOT EXISTS idx_favorites_visitor ON favorites(visitor_id, created_at)`
+    );
+    await query(
+      `CREATE INDEX IF NOT EXISTS idx_offers_visitor ON offers(visitor_id, created_at)`
     );
 
     logger.info({}, "db migrated");

@@ -3,6 +3,8 @@ import { getShopPolicies } from "./getShopPolicies.js";
 import { getOrderStatus } from "./getOrderStatus.js";
 import { submitSupportTicket } from "./submitSupportTicket.js";
 import { rememberCustomer, recordProductInterest } from "../memory/store.js";
+import { recordFavorite, listFavorites, setFavoriteStatus } from "../memory/favorites.js";
+import { getProductEconomics, createOffer } from "../shopify/offers.js";
 import { logEvent } from "../memory/analytics.js";
 import type { ToolContext } from "../providers/textProvider.js";
 import { logger } from "../logger.js";
@@ -109,10 +111,14 @@ export const toolDefs = [
             description:
               "The customer's real email (used to recognize them across visits/devices). Only if they provided it.",
           },
+          phone: {
+            type: "string",
+            description: "The customer's phone number for follow-up, only if they provided it.",
+          },
           preferences: {
             type: "object",
             description:
-              "Key/value preferences, e.g. { style: 'modern', budget: 'under 2000', room: 'living room' }.",
+              "Key/value preferences and sales criteria you have gathered, e.g. { style:'modern', budget:'under 3000', room:'living room', seats:'5', dealbreakers:'must fit through 32in door', timeline:'this month', sale_stage:'qualifying' }.",
             additionalProperties: true,
           },
           interestedProducts: {
@@ -121,6 +127,97 @@ export const toolDefs = [
             description: "Titles of products the customer likes or is considering.",
           },
         },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "record_favorite",
+      description:
+        "Record a couch the customer saved / said they like, so you can narrow their favorites later. " +
+        "Call this whenever the customer names a couch they're drawn to. Only real products they mentioned.",
+      parameters: {
+        type: "object",
+        properties: {
+          productTitle: { type: "string" },
+          note: { type: "string", description: "Why they like it, in their words (optional)." },
+        },
+        required: ["productTitle"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "list_favorites",
+      description:
+        "List the couches this customer has saved (with status: saved/finalist/eliminated/chosen). " +
+        "Use during the narrowing phase to review their favorites.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "set_favorite_status",
+      description:
+        "Update a saved favorite's status as you narrow the list: 'finalist' (passed qualification), " +
+        "'eliminated' (crossed off with the customer's agreement), or 'chosen' (their final pick).",
+      parameters: {
+        type: "object",
+        properties: {
+          productTitle: { type: "string" },
+          status: { type: "string", enum: ["saved", "finalist", "eliminated", "chosen"] },
+        },
+        required: ["productTitle", "status"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_product_economics",
+      description:
+        "Before proposing ANY discount, call this to get the authorized discount limit for a product. " +
+        "Returns the selling price and the maximum discount you are allowed to give while protecting " +
+        "Tempest's required margin. NEVER offer a discount without checking this first, and NEVER exceed " +
+        "the returned maxDiscount. If canOffer is false, you may not discount that product.",
+      parameters: {
+        type: "object",
+        properties: {
+          product: { type: "string", description: "Product title/name to price." },
+        },
+        required: ["product"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "create_offer",
+      description:
+        "Create a REAL, authorized offer (discount code) for the customer. The backend enforces Tempest's " +
+        "margin rules and only creates the code if the offer is allowed — you cannot invent or exceed a " +
+        "discount. Use kind: 'final_lock' or 'personal_win' or 'room_builder' for an immediate dollars-off " +
+        "discount (activates a 20-minute Deal Lock), 'comeback_credit' for a future-purchase credit, or " +
+        "'flex_pay' for financing. Returns a discount code, final price, a checkout link, and expiry. " +
+        "Give the customer the code/link exactly as returned; never state a price or discount the tool didn't return.",
+      parameters: {
+        type: "object",
+        properties: {
+          product: { type: "string", description: "Product title/name." },
+          kind: {
+            type: "string",
+            enum: ["final_lock", "personal_win", "room_builder", "comeback_credit", "flex_pay"],
+          },
+          amount: {
+            type: "number",
+            description: "Dollar amount of the discount (or credit). Must be within the authorized limit.",
+          },
+          note: { type: "string", description: "Optional context for the offer." },
+        },
+        required: ["product", "kind"],
       },
     },
   },
@@ -217,6 +314,7 @@ async function executeToolImpl(
         let raw: {
           name?: unknown;
           email?: unknown;
+          phone?: unknown;
           preferences?: unknown;
           interestedProducts?: unknown;
         } = {};
@@ -227,14 +325,16 @@ async function executeToolImpl(
         }
         const name = typeof raw.name === "string" ? raw.name : undefined;
         const email = typeof raw.email === "string" ? raw.email : undefined;
+        const phone = typeof raw.phone === "string" ? raw.phone : undefined;
         const prefs =
           raw.preferences && typeof raw.preferences === "object"
             ? (raw.preferences as Record<string, unknown>)
             : undefined;
-        const result = await rememberCustomer(sessionId, { email, name, prefs });
+        const result = await rememberCustomer(sessionId, { email, name, phone, prefs });
         void logEvent(sessionId, "profile_updated", {
           hasName: !!name,
           hasEmail: !!email,
+          hasPhone: !!phone,
           prefKeys: prefs ? Object.keys(prefs).length : 0,
         });
         if (Array.isArray(raw.interestedProducts)) {
@@ -248,6 +348,66 @@ async function executeToolImpl(
           }
         }
         return JSON.stringify({ ok: result.ok });
+      }
+      case "record_favorite": {
+        const sessionId = ctx?.sessionId;
+        if (!sessionId) return JSON.stringify({ ok: false, note: "no_session" });
+        let raw: { productTitle?: unknown; note?: unknown } = {};
+        try { raw = JSON.parse(argsJson || "{}"); } catch { raw = {}; }
+        const productTitle = typeof raw.productTitle === "string" ? raw.productTitle.trim() : "";
+        if (!productTitle) return JSON.stringify({ ok: false, error: "missing_product" });
+        const note = typeof raw.note === "string" ? raw.note : undefined;
+        await recordFavorite(sessionId, { productTitle, note });
+        // Also log as an interest so it surfaces in returning-customer context.
+        await recordProductInterest(sessionId, { productTitle, source: "favorite" });
+        void logEvent(sessionId, "favorite_saved", { productTitle });
+        return JSON.stringify({ ok: true });
+      }
+      case "list_favorites": {
+        const sessionId = ctx?.sessionId;
+        if (!sessionId) return JSON.stringify({ favorites: [] });
+        const favorites = await listFavorites(sessionId);
+        return JSON.stringify({ favorites });
+      }
+      case "set_favorite_status": {
+        const sessionId = ctx?.sessionId;
+        if (!sessionId) return JSON.stringify({ ok: false, note: "no_session" });
+        let raw: { productTitle?: unknown; status?: unknown } = {};
+        try { raw = JSON.parse(argsJson || "{}"); } catch { raw = {}; }
+        const productTitle = typeof raw.productTitle === "string" ? raw.productTitle.trim() : "";
+        const status = typeof raw.status === "string" ? raw.status : "";
+        if (!productTitle || !status) return JSON.stringify({ ok: false, error: "missing_args" });
+        await setFavoriteStatus(sessionId, productTitle, status);
+        return JSON.stringify({ ok: true });
+      }
+      case "get_product_economics": {
+        let raw: { product?: unknown } = {};
+        try { raw = JSON.parse(argsJson || "{}"); } catch { raw = {}; }
+        const product = typeof raw.product === "string" ? raw.product : "";
+        const econ = await getProductEconomics(product);
+        // Never expose internal cost to the model output; only what it needs to offer safely.
+        return JSON.stringify({
+          ok: econ.ok,
+          productTitle: econ.productTitle,
+          sellingPrice: econ.sellingPrice,
+          currency: econ.currency,
+          maxDiscount: econ.maxDiscount ?? 0,
+          canOffer: econ.canOffer ?? false,
+          reason: econ.reason,
+        });
+      }
+      case "create_offer": {
+        const sessionId = ctx?.sessionId;
+        let raw: { product?: unknown; kind?: unknown; amount?: unknown; note?: unknown } = {};
+        try { raw = JSON.parse(argsJson || "{}"); } catch { raw = {}; }
+        const product = typeof raw.product === "string" ? raw.product : "";
+        const kind = typeof raw.kind === "string" ? raw.kind : "";
+        const amount = typeof raw.amount === "number" ? raw.amount : Number(raw.amount) || 0;
+        const note = typeof raw.note === "string" ? raw.note : undefined;
+        if (!product || !kind) return JSON.stringify({ ok: false, error: "missing_args" });
+        const offer = await createOffer({ visitorId: sessionId, productQuery: product, kind, amount, note });
+        void logEvent(sessionId, "offer_created", { kind, ok: offer.ok, error: offer.error });
+        return JSON.stringify(offer);
       }
       default:
         logger.warn({ name }, "executeTool: unknown tool");

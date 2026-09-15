@@ -138,7 +138,7 @@ export async function linkVisitorToProfile(visitorId: string, profileId: string)
 
 export async function rememberCustomer(
   visitorId: string,
-  data: { email?: string; name?: string; prefs?: Record<string, unknown> }
+  data: { email?: string; name?: string; phone?: string; prefs?: Record<string, unknown> }
 ): Promise<{ ok: boolean; profileId?: string }> {
   if (!config.dbEnabled) return { ok: false };
   try {
@@ -146,6 +146,7 @@ export async function rememberCustomer(
     await ensureVisitor(visitorId);
 
     const hasName = typeof data?.name === "string" && data.name.trim().length > 0;
+    const hasPhone = typeof data?.phone === "string" && data.phone.trim().length > 0;
     const hasPrefs = data?.prefs && Object.keys(data.prefs).length > 0;
     // A self-asserted email is NOT proof of identity. We store it only as an
     // unverified contact attribute on THIS visitor's own profile — we never use
@@ -154,7 +155,7 @@ export async function rememberCustomer(
     // merge requires an out-of-band verification step (future: OTP), which would
     // set the reserved unique `email` column.
     const realEmail = data?.email && isRealEmail(data.email) ? data.email.trim().toLowerCase() : undefined;
-    if (!realEmail && !hasName && !hasPrefs) return { ok: false };
+    if (!realEmail && !hasName && !hasPhone && !hasPrefs) return { ok: false };
 
     // Build the prefs patch; fold the unverified email in as contact_email.
     const prefsPatch: Record<string, unknown> = { ...(data?.prefs ?? {}) };
@@ -179,9 +180,9 @@ export async function rememberCustomer(
     if (!pid) return { ok: false };
 
     await query(
-      `UPDATE profiles SET name=COALESCE($2,name), prefs=prefs||$3::jsonb,
-       updated_at=now() WHERE id=$1`,
-      [pid, hasName ? data.name : null, prefsJson]
+      `UPDATE profiles SET name=COALESCE($2,name), phone=COALESCE($4,phone),
+       prefs=prefs||$3::jsonb, updated_at=now() WHERE id=$1`,
+      [pid, hasName ? data.name : null, prefsJson, hasPhone ? data.phone : null]
     );
     return { ok: true, profileId: pid };
   } catch (err) {
