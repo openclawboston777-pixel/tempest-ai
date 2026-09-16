@@ -1,3 +1,24 @@
+# Correction — the REAL voice-memory root cause (2026-09-16, later)
+
+The first continuity pass (below) fixed **text** persistence, but the customer's chats
+are **voice** — and voice was the real gap. DB evidence (a whole voice transcript saved in
+one batch at the same second) + a real-browser repro found it: **voice turns never entered
+the chat message flow at all.** `VoiceSession.onTranscript` was declared but never called and
+`emitTranscript` explicitly didn't render — so `this.messages` was empty for a voice chat,
+localStorage restore had nothing, and voice memory only hit Postgres at session end.
+
+Fixed (commit "Fix voice conversations being invisible to memory"): wired
+`emitTranscript -> onTranscript`; voice turns now render + go into `this.messages` (persist +
+sent to backend for recall) via the same path text uses; **X now cleanly ends a live voice
+call** (mic off + transcript flushed immediately) instead of a hot mic that dies at the 90s
+timeout; and `getProfileContext` no longer lets Ema claim she "discussed" a couch the
+customer only viewed in a past visit (the "Memphis" bleed). Verified in a real browser
+(Playwright /demo): reload → panel reopens, conversation restores, Ema recalls the prior
+turn. Backend voice->DB->text recall re-verified. eval 28/28. Still needs a real-microphone
+voice test (headless can't drive the mic).
+
+---
+
 # Morning brief — Conversation continuity + cross-channel voice memory (2026-09-16)
 
 Fixed a set of real production bugs a customer hit during a LIVE voice session: closing
