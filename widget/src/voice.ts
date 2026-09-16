@@ -54,7 +54,10 @@ export interface TranscriptEntry {
 }
 
 export interface VoiceSessionOpts {
-  onTranscript?: (role: "user" | "ai", text: string) => void;
+  // Called once per finalized turn so the host can render voice turns in the chat
+  // and persist them. `replace` = the previous turn of this role was extended
+  // (update the last bubble in place) rather than a brand-new turn (append).
+  onTranscript?: (role: "user" | "ai", text: string, opts?: { replace?: boolean }) => void;
   // Persistent visitor id (shared with text chat) so voice tool calls read/write
   // the same customer memory/profile. Falls back to a per-session id if omitted.
   visitorId?: string;
@@ -227,10 +230,23 @@ export class VoiceSession {
       // Same turn: merge partial/duplicate transcription into one clean entry.
       if (clean.length >= last.text.length) last.text = clean;
       last.ts = Date.now();
+      // Update the already-rendered bubble in place so the voice conversation
+      // shows (and persists) as one clean turn.
+      try {
+        this.opts.onTranscript?.(role, last.text, { replace: true });
+      } catch {
+        /* ignore */
+      }
       return;
     }
     this.transcript.push({ role, text: clean, ts: Date.now() });
-    // Voice transcript is stored to S3 only — intentionally NOT rendered in the chat UI.
+    // Surface the finalized voice turn to the host so it renders in the chat,
+    // persists across page loads, and is sent to the backend for recall.
+    try {
+      this.opts.onTranscript?.(role, clean, { replace: false });
+    } catch {
+      /* ignore */
+    }
   }
 
   private flushUserTurn(): void {

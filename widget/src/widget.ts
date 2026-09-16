@@ -141,6 +141,8 @@ class TempestWidget {
   private voiceLive = false;
   private voicePill?: HTMLDivElement;
   private pillTimer?: number;
+  private lastVoiceRole?: "user" | "ai";
+  private lastVoiceEl?: HTMLDivElement;
 
   constructor(shadow: ShadowRoot) {
     this.root = document.createElement("div");
@@ -243,7 +245,8 @@ class TempestWidget {
     voiceBtn.setAttribute("aria-label", "Voice");
     voiceBtn.innerHTML = MIC_ICON;
     this.voice = new VoiceSession(CFG.backendUrl, this.root, {
-      onTranscript: (role, text) => this.addMessage(role === "user" ? "user" : "ai", text),
+      onTranscript: (role, text, opts) =>
+        this.onVoiceTranscript(role, text, opts?.replace === true),
       visitorId: this.sessionId,
       onStatus: (text) => this.onVoiceStatus(text),
       onActiveChange: (active) => this.onVoiceActiveChange(active),
@@ -317,11 +320,13 @@ class TempestWidget {
     this.persistOpenState(false);
     this.panel.classList.remove("tw-open");
     setTimeout(() => this.launcher.classList.remove("tw-hidden"), 180);
-    // Per Ema's script, closing the panel does NOT end the conversation. If a voice
-    // call is live, keep it running and show a persistent indicator so it never dies
-    // silently in the background.
+    // Closing with the X cleanly ENDS a live voice call: mic off (no invisible
+    // background recording) and the transcript is flushed to the backend right away.
+    // The conversation itself is preserved — it's shown again on reopen and voice
+    // resumes with one mic tap and full context. This matches Ema's script promise
+    // ("I'll still be here") without leaving a hot mic that dies silently at 90s.
     if (this.voiceLive) {
-      this.showVoicePill("\u{1F399}️ Ema is listening — tap to open");
+      this.voice.stop();
     }
   }
 
@@ -585,6 +590,30 @@ class TempestWidget {
     } catch {
       /* ignore */
     }
+  }
+
+  // Voice turns flow into the SAME conversation as text: rendered in the panel,
+  // pushed into this.messages (so they persist across page loads and are sent to
+  // the backend for recall), matching how a "proper" sales chat remembers a call.
+  private onVoiceTranscript(role: "user" | "ai", text: string, replace: boolean): void {
+    const kind = role === "user" ? "user" : "ai";
+    const mrole: "user" | "assistant" = role === "user" ? "user" : "assistant";
+    const canReplace =
+      replace &&
+      this.lastVoiceRole === role &&
+      !!this.lastVoiceEl &&
+      this.messages.length > 0 &&
+      this.messages[this.messages.length - 1].role === mrole;
+    if (canReplace) {
+      this.lastVoiceEl!.textContent = text;
+      this.messages[this.messages.length - 1].content = text;
+      this.scrollToBottom();
+    } else {
+      this.lastVoiceEl = this.addMessage(kind, text);
+      this.lastVoiceRole = role;
+      this.messages.push({ role: mrole, content: text });
+    }
+    this.saveHistory();
   }
 
   private onVoiceStatus(text: string): void {

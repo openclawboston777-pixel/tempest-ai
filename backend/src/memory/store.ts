@@ -242,7 +242,11 @@ export async function getProfileContext(visitorId: string): Promise<string | nul
           .join("; ")}`
       );
     }
-    if (titles.length > 0) lines.push(`- Previously interested in: ${titles.join(", ")}`);
+    if (titles.length > 0) {
+      lines.push(
+        `- Products this customer viewed or saved in a PAST visit (do NOT claim you discussed these in the current conversation, and do NOT assume they still want them — only bring one up if the customer raises it first): ${titles.join(", ")}`
+      );
+    }
     if (priorCount > 0) {
       lines.push(
         "- You have spoken with this customer before — continue the relationship naturally."
