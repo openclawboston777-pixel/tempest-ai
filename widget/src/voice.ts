@@ -54,6 +54,9 @@ export interface TranscriptEntry {
 
 export interface VoiceSessionOpts {
   onTranscript?: (role: "user" | "ai", text: string) => void;
+  // Persistent visitor id (shared with text chat) so voice tool calls read/write
+  // the same customer memory/profile. Falls back to a per-session id if omitted.
+  visitorId?: string;
 }
 
 function base64FromBytes(bytes: Uint8Array): string {
@@ -99,6 +102,7 @@ export class VoiceSession {
   private stopped = false;
 
   private sessionId: string = makeSessionId();
+  private visitorId: string = makeSessionId();
   private transcript: TranscriptEntry[] = [];
 
   private stream: MediaStream | null = null;
@@ -128,6 +132,9 @@ export class VoiceSession {
     this.backendUrl = backendUrl;
     this.container = container;
     this.opts = opts || {};
+    if (opts && typeof opts.visitorId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(opts.visitorId)) {
+      this.visitorId = opts.visitorId;
+    }
 
     let statusEl = container.querySelector<HTMLElement>(".tw-voice-status");
     if (!statusEl) {
@@ -547,22 +554,27 @@ export class VoiceSession {
           break;
         }
         case "response.function_call_arguments.done": {
-          if (event.name === "get_products") {
+          // Generic bridge: run ANY of Ema's tools via the backend so voice is as
+          // capable as text (products, policies, orders, support, memory, offers).
+          const toolName = event.name || "";
+          if (toolName) {
             this.setStatus("Thinking…");
-            const q = ((): string => {
-              try {
-                return (JSON.parse(event.arguments || "{}") as { query?: string }).query || "";
-              } catch {
-                return "";
-              }
-            })();
-            const res = await (
-              await fetch(`${this.backendUrl}/tool/get-products`, {
+            let output = JSON.stringify({ error: "tool_error" });
+            try {
+              const res = await fetch(`${this.backendUrl}/voice/tool`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ query: q }),
-              })
-            ).json();
+                body: JSON.stringify({
+                  name: toolName,
+                  arguments: event.arguments || "{}",
+                  sessionId: this.visitorId,
+                }),
+              });
+              const j = (await res.json()) as { output?: string };
+              if (typeof j.output === "string") output = j.output;
+            } catch {
+              /* keep tool_error output */
+            }
             const ws = this.ws;
             if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(
@@ -571,7 +583,7 @@ export class VoiceSession {
                   item: {
                     type: "function_call_output",
                     call_id: event.call_id,
-                    output: JSON.stringify(res),
+                    output,
                   },
                 }),
               );

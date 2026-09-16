@@ -213,6 +213,7 @@ class TempestWidget {
     voiceBtn.innerHTML = MIC_ICON;
     this.voice = new VoiceSession(CFG.backendUrl, this.root, {
       onTranscript: (role, text) => this.addMessage(role === "user" ? "user" : "ai", text),
+      visitorId: this.sessionId,
     });
     this.voiceBtn = voiceBtn;
     voiceBtn.addEventListener("click", () => this.voice.toggle(voiceBtn));
