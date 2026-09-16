@@ -11,6 +11,32 @@
 const VISIBLE_MS = 8000;     // how long each bubble stays visible
 const MAX_VISIBLE = 2;       // HARD rule: never more than 2 bubbles at once
 
+// Show the proactive intro (bubbles + voice greeting) at most once per this
+// window, PERSISTED in localStorage — so it doesn't replay on every page
+// navigation/refresh, but re-engages a returning visitor later. Default 6h.
+const PROACTIVE_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const ENGAGED_KEY = "tw_proactive_last";
+
+function recentlyEngaged(): boolean {
+  try {
+    const raw = window.localStorage.getItem(ENGAGED_KEY);
+    if (!raw) return false;
+    const last = parseInt(raw, 10);
+    if (!Number.isFinite(last)) return false;
+    return Date.now() - last < PROACTIVE_COOLDOWN_MS;
+  } catch {
+    return false; // storage blocked → don't hard-block engagement
+  }
+}
+
+function markEngaged(): void {
+  try {
+    window.localStorage.setItem(ENGAGED_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
 // Absolute offsets from page load for each message in the timeline (ms).
 // Openers first (fire ~6s in), then three follow-ups spaced out for a shopper
 // who hasn't responded: +30s after the openers, then +4min, then +5min.
@@ -93,7 +119,11 @@ export class Proactive {
   public start(): void {
     safe(() => {
       if (this.started || this.suppressed) return;
+      // Only greet once per visit — skip if we engaged this browser recently
+      // (persisted), so it doesn't replay on every page navigation/refresh.
+      if (recentlyEngaged()) return;
       this.started = true;
+      markEngaged();
       // Schedule the full escalating timeline up front. Each fires only if the
       // chat is still unopened and not dismissed; opening/dismissing clears them.
       this.messages.forEach((text, i) => {

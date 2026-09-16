@@ -7,10 +7,13 @@ const EnvSchema = z.object({
   XAI_VOICE_MODEL: z.string().default("grok-voice-latest"),
   XAI_VOICE: z.string().default("liora"),
   // Short spoken greeting (Ema's voice) played alongside the proactive text bubbles.
+  // Spoken greeting text. NOTE: spell the name "Emma" (not "Ema") so TTS says
+  // "EH-mah", not "EE-ma" — this is audio-only, the spelling isn't shown anywhere.
+  // Kept aligned with the 2nd proactive text bubble so voice + text match.
   VOICE_GREETING_TEXT: z
     .string()
     .default(
-      "Hey, I'm Ema, Tempest's AI assistant. If you'd like to talk, just tap the icon and allow your microphone. Otherwise, I'm right here whenever you need me.",
+      "Hi, I'm Emma, Tempest's AI assistant. I'm here whenever you need help finding exactly what you're looking for. If you'd like to talk with me, just tap the icon and allow microphone access so I can hear you. Otherwise, feel free to use me anytime — I'm here to make things easier.",
     ),
 
   SHOPIFY_STORE_DOMAIN: z.string().optional(),
