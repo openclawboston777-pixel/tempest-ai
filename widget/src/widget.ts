@@ -320,13 +320,14 @@ class TempestWidget {
     this.persistOpenState(false);
     this.panel.classList.remove("tw-open");
     setTimeout(() => this.launcher.classList.remove("tw-hidden"), 180);
-    // Closing with the X cleanly ENDS a live voice call: mic off (no invisible
-    // background recording) and the transcript is flushed to the backend right away.
-    // The conversation itself is preserved — it's shown again on reopen and voice
-    // resumes with one mic tap and full context. This matches Ema's script promise
-    // ("I'll still be here") without leaving a hot mic that dies silently at 90s.
+    // The X only hides the chat window — it does NOT end the voice call, so the
+    // customer can free up the screen and keep browsing while still talking to Ema
+    // (her script: "close this chat and keep looking around, I'll still be here").
+    // A persistent pill shows the call is still live (no silent background mic), and
+    // the MIC button is how you actually end the voice conversation. Voice turns keep
+    // persisting to history, so reopening shows the full conversation.
     if (this.voiceLive) {
-      this.voice.stop();
+      this.showVoicePill("\u{1F399}️ Ema is still listening — tap to reopen");
     }
   }
 
