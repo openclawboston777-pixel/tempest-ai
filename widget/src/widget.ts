@@ -259,7 +259,7 @@ class TempestWidget {
 
     // Greeting
     this.addMessage("ai", `Hi! I'm ${CFG.assistantName}. How can I help you today?`);
-    this.proactive = new Proactive(this.launcher, this.root, (seed) => { this.open(); if (seed) this.addMessage("ai", seed); });
+    this.proactive = new Proactive(this.launcher, this.root, (seed) => { this.open(); if (seed) this.addMessage("ai", seed); }, { voiceGreetingUrl: CFG.backendUrl + "/voice-greeting.mp3" });
     this.proactive.start();
   }
 

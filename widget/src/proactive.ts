@@ -24,7 +24,7 @@ const SCHEDULE_MS: number[] = [
 
 const DEFAULT_OPENERS: string[] = [
   "Looking for something specific? I can help \u{1F44B}",
-  "Happy to help you find the perfect piece \u2014 just ask.",
+  "Hi, I'm Ema, Tempest's AI assistant. I'm here whenever you need help finding exactly what you're looking for. If you'd like to talk with me, just tap the icon and allow microphone access so I can hear you. Otherwise, feel free to use me anytime\u2014I'm here to make things easier.",
 ];
 
 // Witty, low-pressure nudges for a shopper who's gone quiet.
@@ -36,6 +36,10 @@ const DEFAULT_FOLLOWUPS: string[] = [
 
 export interface ProactiveOptions {
   messages?: string[];
+  // URL of a short spoken greeting (Ema's voice) to play alongside the first
+  // bubble. Plays once; if the browser blocks autoplay, it plays on the first
+  // user interaction with the page.
+  voiceGreetingUrl?: string;
 }
 
 type TimerId = ReturnType<typeof setTimeout>;
@@ -61,6 +65,12 @@ export class Proactive {
   private suppressed = false;
   private started = false;
 
+  // Voice greeting (plays alongside the first bubble, once per session).
+  private voiceGreetingUrl = "";
+  private greetingAudio: HTMLAudioElement | null = null;
+  private greetingPlayed = false;
+  private greetingGestureHandler: (() => void) | null = null;
+
   constructor(
     launcher: HTMLElement,
     container: HTMLElement,
@@ -71,6 +81,9 @@ export class Proactive {
     this.container = container;
     this.onOpen = typeof onOpen === "function" ? onOpen : () => undefined;
     this.messages = this.resolveMessages(opts);
+    if (opts && typeof opts.voiceGreetingUrl === "string") {
+      this.voiceGreetingUrl = opts.voiceGreetingUrl;
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -90,6 +103,10 @@ export class Proactive {
           if (this.canShow()) this.showBubble(text);
         }, at);
       });
+      // Play Ema's spoken greeting alongside the first bubble (once).
+      if (this.voiceGreetingUrl) {
+        this.addTimer(() => this.playGreetingOnce(), SCHEDULE_MS[0] || 6000);
+      }
     });
   }
 
@@ -97,6 +114,7 @@ export class Proactive {
     safe(() => {
       this.clearTimers();
       this.hideAll(true);
+      this.cancelGreeting();
     });
   }
 
@@ -105,7 +123,84 @@ export class Proactive {
       this.suppressed = true;
       this.clearTimers();
       this.hideAll(false);
+      this.cancelGreeting();
     });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Voice greeting                                                      */
+  /* ------------------------------------------------------------------ */
+
+  private playGreetingOnce(): void {
+    safe(() => {
+      if (this.greetingPlayed || this.suppressed || this.isChatOpen() || !this.voiceGreetingUrl) return;
+      if (!this.greetingAudio) {
+        this.greetingAudio = new Audio(this.voiceGreetingUrl);
+        this.greetingAudio.preload = "auto";
+        this.greetingAudio.volume = 0.9;
+      }
+      const p = this.greetingAudio.play();
+      if (p && typeof p.then === "function") {
+        p.then(() => {
+          this.greetingPlayed = true;
+          this.removeGreetingGestures();
+        }).catch(() => {
+          // Autoplay blocked — play at the first user interaction instead.
+          this.armGreetingGestures();
+        });
+      } else {
+        this.greetingPlayed = true;
+      }
+    });
+  }
+
+  private armGreetingGestures(): void {
+    if (this.greetingGestureHandler || this.greetingPlayed) return;
+    const evs = ["pointerdown", "keydown", "touchstart", "scroll"];
+    const handler = (): void => {
+      safe(() => {
+        if (this.greetingPlayed || this.suppressed || this.isChatOpen()) {
+          this.removeGreetingGestures();
+          return;
+        }
+        const a = this.greetingAudio;
+        if (!a) return;
+        const p = a.play();
+        if (p && typeof p.then === "function") {
+          p.then(() => {
+            this.greetingPlayed = true;
+            this.removeGreetingGestures();
+          }).catch(() => undefined);
+        }
+      });
+    };
+    this.greetingGestureHandler = handler;
+    for (const ev of evs) document.addEventListener(ev, handler, { passive: true });
+  }
+
+  private removeGreetingGestures(): void {
+    const h = this.greetingGestureHandler;
+    if (!h) return;
+    for (const ev of ["pointerdown", "keydown", "touchstart", "scroll"]) {
+      try {
+        document.removeEventListener(ev, h);
+      } catch {
+        /* ignore */
+      }
+    }
+    this.greetingGestureHandler = null;
+  }
+
+  private cancelGreeting(): void {
+    this.greetingPlayed = true; // prevent any further playback this session
+    this.removeGreetingGestures();
+    if (this.greetingAudio) {
+      try {
+        this.greetingAudio.pause();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   /* ------------------------------------------------------------------ */
