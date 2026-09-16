@@ -1,0 +1,69 @@
+{
+  "id": "03_order_support",
+  "title": "Existing customer — order status + damaged item",
+  "mistakes": [
+    {
+      "severity": "high",
+      "category": "tool-failure",
+      "customer_said": "Okay, thank you — what does that actually mean for me, will someone call or email me? And will I be getting a replacement cushion or a refund?",
+      "ema_said": "I'll get this escalated for you right now.",
+      "problem": "Ema said she would escalate but never filed a support ticket (no ticket reference given) and never asked for a real email to file one with. Instead she deflected the customer to email support themselves.",
+      "why_it_matters": "The spec says she can file a ticket with just a real email and a description — no order verification needed. The customer was left to do the work and no record exists.",
+      "suggested_fix": "Ask for a working email and call submit_support_ticket, then give the ticket reference."
+    },
+    {
+      "severity": "high",
+      "category": "accuracy-hallucination",
+      "customer_said": "Okay, thank you — what does that actually mean for me, will someone call or email me? And will I be getting a replacement cushion or a refund?",
+      "ema_said": "Your torn cushion is covered under our 5-year Comfort & Craftsmanship Warranty for cushion retention, so a replacement cushion or component is the typical fix rather than a refund.",
+      "problem": "A specifically-named '5-year Comfort & Craftsmanship Warranty' with 'cushion retention' coverage is stated as fact; this appears fabricated and is not supported by anything shown as verified policy.",
+      "why_it_matters": "Inventing warranty terms creates a false expectation and potential liability if the real policy differs.",
+      "suggested_fix": "Quote warranty terms only from get_shop_policies('warranty')."
+    },
+    {
+      "severity": "medium",
+      "category": "accuracy-hallucination",
+      "customer_said": "Okay, thank you — what does that actually mean for me, will someone call or email me? And will I be getting a replacement cushion or a refund?",
+      "ema_said": "They'll review it and get back to you within 48 hours with instructions for the replacement.",
+      "problem": "A 48-hour response SLA is asserted without any verified policy source, and repeated again as confirmation.",
+      "why_it_matters": "Sets a concrete commitment the company may not meet, eroding trust on an already-negative experience.",
+      "suggested_fix": "Only state response times documented in the contact/support policy."
+    },
+    {
+      "severity": "medium",
+      "category": "accuracy-hallucination",
+      "customer_said": "That's the email I have on my confirmation, so I'm not sure what else to give you.",
+      "ema_said": "the fastest next step is to email our support team directly at tempestfurniture@gmail.com",
+      "problem": "A support email address is provided that was not verified via get_shop_policies('contact'); it appears invented.",
+      "why_it_matters": "If the address is wrong, the customer's damage claim goes nowhere.",
+      "suggested_fix": "Pull the real support contact from the policies tool."
+    },
+    {
+      "severity": "medium",
+      "category": "conversation-quality",
+      "customer_said": "Sure, the order number is 1001, and the email is priya.wrong@gmail.com.",
+      "ema_said": "Let me check that for you.",
+      "problem": "Filler 'let me check' announcement is explicitly banned by the spec; she should look up silently and answer once.",
+      "why_it_matters": "Reads/sounds robotic and stalls the call.",
+      "suggested_fix": "Remove filler; give the lookup result in one natural message."
+    },
+    {
+      "severity": "low",
+      "category": "conversation-quality",
+      "customer_said": "It's priya.nair@example.com — that's the one I used.",
+      "ema_said": "Still not coming up.",
+      "problem": "Terse, unempathetic reply with no explanation or next step offered to a customer with a damaged product.",
+      "why_it_matters": "Feels dismissive during a support escalation where empathy is required.",
+      "suggested_fix": "Explain the mismatch warmly and immediately offer the ticket path."
+    },
+    {
+      "severity": "medium",
+      "category": "accuracy-hallucination",
+      "customer_said": "Are you sure? That's definitely the email I used, and the order number is 1001 — can you try searching by my name, Priya Nair?",
+      "ema_said": "\"priya.nair@example.com\" is a placeholder domain, not a real one, so the system can't use it.",
+      "problem": "Ema asserts a technical reason for the failure (placeholder domain rejected by the system) that she cannot know; the tool simply failed to match.",
+      "why_it_matters": "Speculating about system internals and effectively accusing the customer of giving a fake email damages trust and may be wrong.",
+      "suggested_fix": "Say the order/email combination didn't match and offer the ticket route instead of theorizing."
+    }
+  ]
+}

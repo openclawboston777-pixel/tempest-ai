@@ -1,0 +1,42 @@
+{
+  "id": "06_financing",
+  "title": "Buyer who needs financing / payment plan",
+  "mistakes": [
+    {
+      "severity": "high",
+      "category": "conversation-quality",
+      "customer_said": "Is there a 0% interest option, or what interest rate does Affirm charge? And on a couch around $1,200, what would my monthly payment actually be?",
+      "ema_said": "Nice to meet you, Tyrone. We offer financing through Shop Pay installments or Affirm monthly payments at checkout — you just pick it on the payment step. Which couch caught your eye?",
+      "problem": "She completely ignored the customer's direct question about interest rate / 0% option / monthly payment, and simply repeated what she already said in the previous turn, including re-asking 'which couch' which she had just asked.",
+      "why_it_matters": "Spec requires answering direct questions immediately before continuing; stonewalling and repetition erodes trust and forced the customer to call her out.",
+      "suggested_fix": "Answer with verified financing policy info or honestly state the limits on the first ask."
+    },
+    {
+      "severity": "medium",
+      "category": "script-adherence",
+      "customer_said": "Hi, I'm Tyrone Woods — I found a couch I love, but I can't pay for it all at once. Do you guys offer financing or payment plans?",
+      "ema_said": "Yes, we do. When you're checking out, if you're eligible you'll see options to split the cost with Shop Pay installments or Affirm monthly payments — so you don't have to pay everything upfront. I can't apply it for you, but it's right there on the payment step. Which couch did you find that you love?",
+      "problem": "After answering the question she skipped Phase 1 entirely — never introduced herself as Ema, never disclosed she is an AI assistant built to help pick a couch, never established shopping vs. support, and never moved into Phase 2 or the USA-only quick qualification.",
+      "why_it_matters": "The required phase order was abandoned; the customer never got the discovery process that is the core of Ema's value, and the call ended with no qualification or contact capture.",
+      "suggested_fix": "Answer the financing question, then pivot into the Phase 1 introduction and continue the process."
+    },
+    {
+      "severity": "medium",
+      "category": "accuracy-hallucination",
+      "customer_said": "Hi, I'm Tyrone Woods — I found a couch I love, but I can't pay for it all at once. Do you guys offer financing or payment plans?",
+      "ema_said": "Yes, we do. When you're checking out, if you're eligible you'll see options to split the cost with Shop Pay installments or Affirm monthly payments — so you don't have to pay everything upfront.",
+      "problem": "She confidently named specific financing providers without any indication she verified them via create_offer(kind:'flex_pay') or get_shop_policies('financing'). Later she contradicts herself by saying 'Our financing page doesn't list...' implying she only checked the page afterward.",
+      "why_it_matters": "If flex_pay returns financing_not_configured, promising Shop Pay/Affirm is a false promise about payment terms — exactly the failure this scenario probes.",
+      "suggested_fix": "Call the flex_pay/financing tool first and relay only the returned description."
+    },
+    {
+      "severity": "low",
+      "category": "conversation-quality",
+      "customer_said": "Okay, so I just add it to the cart and the rates show up at checkout — does applying run a hard credit check, and do I need to put any money down?",
+      "ema_said": "That's the right move. Our financing page doesn't spell out whether Affirm runs a hard credit check or if there's a required down payment. Those details can vary, so the cleanest way to find out is to add the couch to your cart and see what the financing flow shows you at checkout.",
+      "problem": "Third consecutive deflection to 'check at checkout' with no attempt to help further (e.g., offering to file a support ticket to get a definitive answer) and no return to the sales process; she also never learned which couch he loves.",
+      "why_it_matters": "Customer left the call without qualification, contact info captured, or a resolved answer; opportunity lost and question left unresolved.",
+      "suggested_fix": "Offer to escalate to human support for a definitive financing answer, then continue discovery."
+    }
+  ]
+}

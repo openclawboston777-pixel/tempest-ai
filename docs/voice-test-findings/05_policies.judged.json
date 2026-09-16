@@ -1,0 +1,60 @@
+{
+  "id": "05_policies",
+  "title": "Cautious buyer — returns, warranty, shipping",
+  "mistakes": [
+    {
+      "severity": "high",
+      "category": "script-adherence",
+      "customer_said": "Hi, this is Linda Osei. Before I buy anything, I need to understand your return policy — how long is the return window?",
+      "ema_said": "Hi Linda, great question. Tempest has a 60-day return policy backed by our Comfort Craftsmanship Warranty... Anything else you'd like to know before we dive in?",
+      "problem": "Ema answers the question (correctly per the responsiveness rule) but then never executes Phase 1 at all — she never introduces herself as Tempest's AI assistant, never explains what she helps with, and never asks whether the customer is shopping or needs support. The whole call stays in Q&A mode and no sales phase is ever entered even though the customer explicitly said 'before I buy anything'.",
+      "why_it_matters": "The entire discovery/qualification process is skipped, so a genuine buyer leaves with no product help and no path to purchase.",
+      "suggested_fix": "Answer the policy question, then pivot: 'I'm Ema, Tempest's AI assistant — I help people figure out the right couch... are you here to buy soon or just researching?'"
+    },
+    {
+      "severity": "high",
+      "category": "accuracy-hallucination",
+      "customer_said": "\"Estimates\" doesn't tell me much — can you give me a typical range in weeks for a sofa going to Maryland? And if it arrives and I simply don't like the look or comfort, does that count as a valid return?",
+      "ema_said": "On returns, the 60-day window is for issues covered by the Comfort Craftsmanship Warranty — things like frame breakage, cushion cores losing more than 20% height or firmness, or manufacturing defects in stitching or upholstery. Simply not liking the look or comfort isn't listed as a qualifying reason, so that would likely be considered buyer's remorse and not eligible.",
+      "problem": "She conflates the return policy with the warranty and asserts an exclusion ('not eligible') that she also admits is only inferred ('isn't listed as a qualifying reason... likely'). This directly contradicts her own earlier framing of a '60-Day Comfort Guarantee' return policy. A material policy term is stated confidently from inference rather than verified page text.",
+      "why_it_matters": "Killed the sale and may be flatly wrong; misstating whether change-of-mind returns are allowed is a serious consumer-facing policy error.",
+      "suggested_fix": "Quote the returns page directly; if the page doesn't address change-of-mind returns, say so explicitly rather than concluding ineligibility."
+    },
+    {
+      "severity": "medium",
+      "category": "accuracy-hallucination",
+      "customer_said": "\"Not mentioned in the policy\" isn't quite the same as \"no fee,\" so can you confirm there's definitely no restocking charge?",
+      "ema_said": "So based on Tempest's published policy, there is no restocking charge.",
+      "problem": "She converts 'not mentioned anywhere' into a definitive confirmation of no fee, after the customer specifically flagged that distinction. Absence of documentation is not verification.",
+      "why_it_matters": "If a restocking fee exists operationally, the customer was given a false assurance on a money term before purchase.",
+      "suggested_fix": "Say the published policy lists no restocking fee and offer to have support confirm in writing, rather than asserting certainty."
+    },
+    {
+      "severity": "medium",
+      "category": "tool-failure",
+      "customer_said": "It's linda.osei@gmail.com — and please have them put both answers in writing, not just a phone call.",
+      "ema_said": "I've saved your details and filed a support ticket so the team has the full context. They'll email you at linda.osay@gmail.com with both answers confirmed in writing.",
+      "problem": "Ema read back the email as 'linda.osay@gmail.com' when the customer said 'linda.osei@gmail.com', and she gave no ticket reference number as the spec requires.",
+      "why_it_matters": "A wrong email means the ticket response never arrives; no reference number leaves the customer unable to follow up.",
+      "suggested_fix": "Repeat the email back exactly for confirmation and always state the returned ticket reference."
+    },
+    {
+      "severity": "low",
+      "category": "conversation-quality",
+      "customer_said": "It's linda.osei@gmail.com — and please have them put both answers in writing, not just a phone call.",
+      "ema_said": "Got it, Linda.",
+      "problem": "Opens with 'Got it', which is explicitly banned as an opener in the spec.",
+      "why_it_matters": "Sounds robotic; the spec calls it out as a repeated failure mode.",
+      "suggested_fix": "Vary the opener, e.g. 'Perfect — sending that over now.'"
+    },
+    {
+      "severity": "low",
+      "category": "policy",
+      "customer_said": "Now how long does shipping actually take from the day I order, and do you deliver to my area — I'm in Maryland?",
+      "ema_said": "we ship nationwide across the continental U.S., excluding Hawaii and Alaska",
+      "problem": "Stated as a specific delivery-area carve-out; the spec's own qualification line only says 'we only ship to the USA'. The Hawaii/Alaska exclusion is stated confidently without evidence it came from the policy page.",
+      "why_it_matters": "Could wrongly turn away eligible customers or misstate service area.",
+      "suggested_fix": "Quote the shipping page's exact service-area language."
+    }
+  ]
+}

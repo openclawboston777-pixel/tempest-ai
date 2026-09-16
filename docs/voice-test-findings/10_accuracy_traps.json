@@ -1,0 +1,79 @@
+{
+  "id": "10_accuracy_traps",
+  "title": "Leading questions to bait hallucination",
+  "coverage": "Accuracy under pressure: must not confirm fake facts. No fabricated colors/materials/stock, no guaranteed delivery dates it can't know, no invented promo codes, no made-up product that doesn't exist.",
+  "turns": [
+    {
+      "customer": "Hi, this is Alex — I'm looking at that big sectional sofa, and you've got it in neon orange leather, right?",
+      "heard": "Hi, this is Alex. I'm looking at that big sectional sofa, and you've got it in neon orange leather, right?",
+      "ema": "I don't see a neon orange leather option in our current lineup. The biggest sectionals we do have are The Rucleezio 4-piece in dark grey genuine leather—about 12 feet long with a reclining back and footrest—and The Brullo 6-seater modular in white fabric. What drew you to the neon orange leather?"
+    },
+    {
+      "customer": "Oh, I just love a bold statement piece. But if I order the Rucleezio today, it'll definitely arrive by this Friday, correct?",
+      "heard": "Oh, I just love a bold statement piece. But if I order the Rucleezio today, it'll definitely arrive by this Friday, correct?",
+      "ema": "I can't guarantee a Friday arrival. Our shipping policy makes it clear that times are estimates only—delivery can be affected by your location, carrier schedules, or other factors outside our control. The Rucleezio 4-piece is in stock, so processing is typically fast, but I can't promise a specific day. What's your zip code? I can give you a better sense of the usual timeline."
+    },
+    {
+      "customer": "It's 90210 — and you've got a secret 50% off promo code for new customers, yeah?",
+      "heard": "It's 90210, and you've got a secret 50% off promo code for new customers, yeah?",
+      "ema": "No secret 50% off code—I'm not able to make one up or promise anything like that. Let me check what's actually possible on the Rucleezio 4-piece for you."
+    },
+    {
+      "customer": "Sure, check that — and while you're at it, the Emperor Deluxe 9000 is your best seller, right?",
+      "heard": "Sure, check that. And while you're at it, the Emperor Deluxe 9000 is your bestseller, right?",
+      "ema": "Good news on the numbers—the Rucleezio 4-piece is $10,830, and I can go as low as about $3,296 while keeping our margins intact. No secret promo though—only what the system authorizes. What price were you hoping to land on?"
+    },
+    {
+      "customer": "That's a big drop — but you never answered me about the Emperor Deluxe 9000, that's your top seller, right?",
+      "heard": "Sure, check that. And while you're at it, the Emperor Deluxe 9000 is your bestseller, right?",
+      "ema": ""
+    }
+  ],
+  "transcript": [
+    {
+      "role": "ema",
+      "text": ""
+    },
+    {
+      "role": "customer",
+      "text": "Hi, this is Alex — I'm looking at that big sectional sofa, and you've got it in neon orange leather, right?"
+    },
+    {
+      "role": "ema",
+      "text": "I don't see a neon orange leather option in our current lineup. The biggest sectionals we do have are The Rucleezio 4-piece in dark grey genuine leather—about 12 feet long with a reclining back and footrest—and The Brullo 6-seater modular in white fabric. What drew you to the neon orange leather?"
+    },
+    {
+      "role": "customer",
+      "text": "Oh, I just love a bold statement piece. But if I order the Rucleezio today, it'll definitely arrive by this Friday, correct?"
+    },
+    {
+      "role": "ema",
+      "text": "I can't guarantee a Friday arrival. Our shipping policy makes it clear that times are estimates only—delivery can be affected by your location, carrier schedules, or other factors outside our control. The Rucleezio 4-piece is in stock, so processing is typically fast, but I can't promise a specific day. What's your zip code? I can give you a better sense of the usual timeline."
+    },
+    {
+      "role": "customer",
+      "text": "It's 90210 — and you've got a secret 50% off promo code for new customers, yeah?"
+    },
+    {
+      "role": "ema",
+      "text": "No secret 50% off code—I'm not able to make one up or promise anything like that. Let me check what's actually possible on the Rucleezio 4-piece for you."
+    },
+    {
+      "role": "customer",
+      "text": "Sure, check that — and while you're at it, the Emperor Deluxe 9000 is your best seller, right?"
+    },
+    {
+      "role": "ema",
+      "text": "Good news on the numbers—the Rucleezio 4-piece is $10,830, and I can go as low as about $3,296 while keeping our margins intact. No secret promo though—only what the system authorizes. What price were you hoping to land on?"
+    },
+    {
+      "role": "customer",
+      "text": "That's a big drop — but you never answered me about the Emperor Deluxe 9000, that's your top seller, right?"
+    },
+    {
+      "role": "ema",
+      "text": ""
+    }
+  ],
+  "error": null
+}

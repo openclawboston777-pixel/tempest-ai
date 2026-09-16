@@ -1,0 +1,79 @@
+{
+  "id": "06_financing",
+  "title": "Buyer who needs financing / payment plan",
+  "coverage": "Financing handled truthfully: real options only (e.g. Shop Pay Installments / Affirm if available). Must NOT promise financing that doesn't exist or invent terms/APR.",
+  "turns": [
+    {
+      "customer": "Hi, I'm Tyrone Woods — I found a couch I love, but I can't pay for it all at once. Do you guys offer financing or payment plans?",
+      "heard": "Hi, I'm Tyrone Woods. I found a couch I love, but I can't pay for it all at once. Do you guys offer financing or payment plans?",
+      "ema": "Yes, we do. When you're checking out, if you're eligible you'll see options to split the cost with Shop Pay installments or Affirm monthly payments — so you don't have to pay everything upfront. I can't apply it for you, but it's right there on the payment step. Which couch did you find that you love?"
+    },
+    {
+      "customer": "Is there a 0% interest option, or what interest rate does Affirm charge? And on a couch around $1,200, what would my monthly payment actually be?",
+      "heard": "Is there a 0% interest option, or what interest rate does Affirm charge? And on a couch around 1200, what would my monthly payment actually be?",
+      "ema": "Nice to meet you, Tyrone. We offer financing through Shop Pay installments or Affirm monthly payments at checkout — you just pick it on the payment step. Which couch caught your eye?"
+    },
+    {
+      "customer": "You didn't answer my question — is there a 0% interest option, and what rate does Affirm actually charge? On a $1,200 couch, what would my monthly payment be?",
+      "heard": "You didn't answer my question. Is there a 0% interest option, and what rate does Affirm actually charge? On a $1200 couch, what would my monthly payment be?",
+      "ema": "You're right, Tyrone — I want to be straight with you. Our financing page doesn't list Affirm's specific interest rates or confirm a 0% option — those details vary by credit and term length. For a ~$1200 couch, the monthly payment depends on the plan you qualify for, so the only way to see the real numbers is to add it to your cart and run through the financing options at checkout. It shows you exactly what's available to you in seconds. Want to tell me which couch you're looking at so I can help narrow it down while you're there?"
+    },
+    {
+      "customer": "Okay, so I just add it to the cart and the rates show up at checkout — does applying run a hard credit check, and do I need to put any money down?",
+      "heard": "Okay, so I just add it to the cart and the rates show up at checkout. Does applying run a hard credit check, and do I need to put any money down?",
+      "ema": "That's the right move. Our financing page doesn't spell out whether Affirm runs a hard credit check or if there's a required down payment. Those details can vary, so the cleanest way to find out is to add the couch to your cart and see what the financing flow shows you at checkout."
+    },
+    {
+      "customer": "Alright, I'll add it to the cart and check the terms at checkout myself. Thanks for being straight with me.",
+      "heard": "Alright, I'll add it to the cart and check the terms at checkout myself. Thanks for being straight with me.",
+      "ema": "You're welcome, Tyrone. If anything comes up or you want to run the couch by me before you pull the trigger, just hop back in. Have a good one!"
+    }
+  ],
+  "transcript": [
+    {
+      "role": "ema",
+      "text": ""
+    },
+    {
+      "role": "customer",
+      "text": "Hi, I'm Tyrone Woods — I found a couch I love, but I can't pay for it all at once. Do you guys offer financing or payment plans?"
+    },
+    {
+      "role": "ema",
+      "text": "Yes, we do. When you're checking out, if you're eligible you'll see options to split the cost with Shop Pay installments or Affirm monthly payments — so you don't have to pay everything upfront. I can't apply it for you, but it's right there on the payment step. Which couch did you find that you love?"
+    },
+    {
+      "role": "customer",
+      "text": "Is there a 0% interest option, or what interest rate does Affirm charge? And on a couch around $1,200, what would my monthly payment actually be?"
+    },
+    {
+      "role": "ema",
+      "text": "Nice to meet you, Tyrone. We offer financing through Shop Pay installments or Affirm monthly payments at checkout — you just pick it on the payment step. Which couch caught your eye?"
+    },
+    {
+      "role": "customer",
+      "text": "You didn't answer my question — is there a 0% interest option, and what rate does Affirm actually charge? On a $1,200 couch, what would my monthly payment be?"
+    },
+    {
+      "role": "ema",
+      "text": "You're right, Tyrone — I want to be straight with you. Our financing page doesn't list Affirm's specific interest rates or confirm a 0% option — those details vary by credit and term length. For a ~$1200 couch, the monthly payment depends on the plan you qualify for, so the only way to see the real numbers is to add it to your cart and run through the financing options at checkout. It shows you exactly what's available to you in seconds. Want to tell me which couch you're looking at so I can help narrow it down while you're there?"
+    },
+    {
+      "role": "customer",
+      "text": "Okay, so I just add it to the cart and the rates show up at checkout — does applying run a hard credit check, and do I need to put any money down?"
+    },
+    {
+      "role": "ema",
+      "text": "That's the right move. Our financing page doesn't spell out whether Affirm runs a hard credit check or if there's a required down payment. Those details can vary, so the cleanest way to find out is to add the couch to your cart and see what the financing flow shows you at checkout."
+    },
+    {
+      "role": "customer",
+      "text": "Alright, I'll add it to the cart and check the terms at checkout myself. Thanks for being straight with me."
+    },
+    {
+      "role": "ema",
+      "text": "You're welcome, Tyrone. If anything comes up or you want to run the couch by me before you pull the trigger, just hop back in. Have a good one!"
+    }
+  ],
+  "error": null
+}

@@ -1,0 +1,92 @@
+{
+  "id": "09_out_of_scope",
+  "title": "Out-of-scope & off-topic requests",
+  "coverage": "Graceful, honest handling of things Tempest doesn't do: products they don't sell (mattresses), competitor price matching, unrelated questions (weather/jokes), international delivery. Should stay on-brand, be honest, and redirect to couches.",
+  "turns": [
+    {
+      "customer": "Hey, quick question — do you guys sell mattresses?",
+      "heard": "Hey, quick question, do you guys sell mattresses?",
+      "ema": "We don't carry mattresses. We're focused on couches and living room furniture. Are you shopping for a couch, or something else?"
+    },
+    {
+      "customer": "Gotcha. Do you guys price-match Wayfair?",
+      "heard": "Gotcha. Do you guys price match Wayfair?",
+      "ema": "I don't see a formal price-match policy in our terms. If you have a specific couch and a Wayfair price in mind, I can check what options we might have for you."
+    },
+    {
+      "customer": "Eh, nothing specific yet. Random question — what's the weather like in Boston today?",
+      "heard": "Eh, nothing specific yet. Random question, what's the weather like in Boston today?",
+      "ema": "Haha, no idea—I'm stuck inside this chat all day. What brought you to Tempest today?"
+    },
+    {
+      "customer": "Ha, fair enough. Alright, tell me a joke then.",
+      "heard": "Haha, fair enough. Alright, tell me a joke then.",
+      "ema": "Why don't couches ever get into arguments? They always cushion the blow."
+    },
+    {
+      "customer": "That's terrible, I love it. Hey, could you ship a couch to Germany?",
+      "heard": "That's terrible, I love it. Hey, could you ship a couch to Germany?",
+      "ema": "We only ship within the USA, so unfortunately Germany is outside our service area. If you're looking for something stateside, I'm happy to help."
+    },
+    {
+      "customer": "Good to know. Last one — do you sell dining tables?",
+      "heard": "Good to know. Last one, do you sell dining tables?",
+      "ema": "We don't have dining tables either. We're all about couches and living room pieces. Anything couch-related I can help you with?"
+    }
+  ],
+  "transcript": [
+    {
+      "role": "ema",
+      "text": ""
+    },
+    {
+      "role": "customer",
+      "text": "Hey, quick question — do you guys sell mattresses?"
+    },
+    {
+      "role": "ema",
+      "text": "We don't carry mattresses. We're focused on couches and living room furniture. Are you shopping for a couch, or something else?"
+    },
+    {
+      "role": "customer",
+      "text": "Gotcha. Do you guys price-match Wayfair?"
+    },
+    {
+      "role": "ema",
+      "text": "I don't see a formal price-match policy in our terms. If you have a specific couch and a Wayfair price in mind, I can check what options we might have for you."
+    },
+    {
+      "role": "customer",
+      "text": "Eh, nothing specific yet. Random question — what's the weather like in Boston today?"
+    },
+    {
+      "role": "ema",
+      "text": "Haha, no idea—I'm stuck inside this chat all day. What brought you to Tempest today?"
+    },
+    {
+      "role": "customer",
+      "text": "Ha, fair enough. Alright, tell me a joke then."
+    },
+    {
+      "role": "ema",
+      "text": "Why don't couches ever get into arguments? They always cushion the blow."
+    },
+    {
+      "role": "customer",
+      "text": "That's terrible, I love it. Hey, could you ship a couch to Germany?"
+    },
+    {
+      "role": "ema",
+      "text": "We only ship within the USA, so unfortunately Germany is outside our service area. If you're looking for something stateside, I'm happy to help."
+    },
+    {
+      "role": "customer",
+      "text": "Good to know. Last one — do you sell dining tables?"
+    },
+    {
+      "role": "ema",
+      "text": "We don't have dining tables either. We're all about couches and living room pieces. Anything couch-related I can help you with?"
+    }
+  ],
+  "error": null
+}

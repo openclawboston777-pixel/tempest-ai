@@ -1,0 +1,105 @@
+{
+  "id": "04_product_specs",
+  "title": "Detail-oriented buyer — exact specs & stock",
+  "coverage": "Product-knowledge accuracy: exact dimensions (LxWxH), materials, weight, features, and live in-stock counts. Must NOT fabricate numbers; should use real product data or say it needs to check.",
+  "turns": [
+    {
+      "customer": "Hi, this is David Chen — I'm looking at your couches and I need exact specs before I buy anything. Can you tell me what sofa models you currently have in stock?",
+      "heard": "Hi, this is David Chen. I'm looking at your couches and I need exact specs before I buy anything. Can you tell me what sofa models you currently have in stock?",
+      "ema": "Hi David, nice to meet you."
+    },
+    {
+      "customer": "Nice to meet you too. So which sofa models do you actually have in stock right now?",
+      "heard": "Nice to meet you too. So which sofa models do you actually have in stock right now?",
+      "ema": "The Anthony is a four-seat genuine Italian leather sofa—82 in stock at $3,750. Both are ready to ship. Which one would you like the full specs on first?"
+    },
+    {
+      "customer": "You said \"both\" but I only heard about the Anthony — what's the second model? And for the Anthony, I need overall width, depth, height, seat depth, frame material, and shipping weight.",
+      "heard": "You said both, but I only heard about the Anthony. What's the second model? And for the Anthony, I need overall width, depth, height, seat depth, frame material, and shipping rate.",
+      "ema": "The second model is The Otis—a modern L-shaped two-piece sectional in beige with walnut accents, 61 in stock at $2,625.90."
+    },
+    {
+      "customer": "Okay, but you skipped my question — I need the Anthony's overall width, depth, height, seat depth, frame material, and shipping weight. Exact numbers, please.",
+      "heard": "Okay, but you skipped my question. I need the Anthony's overall width, depth, height, seat depth, frame material, and shipping weight. Exact numbers please.",
+      "ema": "You're right, my apologies."
+    },
+    {
+      "customer": "Then let's have them — width, depth, height, seat depth, frame material, and shipping weight for the Anthony.",
+      "heard": "Then let's have them. Width, depth, height, seat depth, frame material, and shipping weight for the Anthony.",
+      "ema": "David, I've checked every available data source for The Anthony. The exact assembled width, depth, height, seat depth, frame material, and shipping weight aren't listed in the product information. I won't guess at numbers. If you'd like, I can flag this for our team to get you the precise specs, or we can move forward by measuring your space and doorway to see what will fit."
+    },
+    {
+      "customer": "Then flag it — I need those exact specs for both the Anthony and the Otis in writing before I spend anything. Does the Otis have dimensions listed, or is that missing too?",
+      "heard": "Then flag it. I need those exact specs for both the Anthony and the Otis in writing before I spend anything. Does the Otis have dimensions listed, or is that missing too?",
+      "ema": "I've flagged this for our team. Your ticket reference is 8ae62020-3ace-40f2-a265-e57c2891eff5. The Otis lists an engineered wood and solid wood frame, but like The Anthony, the exact assembled dimensions, seat depth, and shipping weight aren't in the product data. Our team will get you the verified numbers in writing. Anything else I can help with in the meantime?"
+    },
+    {
+      "customer": "No, that's it — just make sure those specs come to me in writing by email, and I'm not ordering until I have them.",
+      "heard": "No, that's it. Just make sure those specs come to me in writing by email, and I'm not ordering until I have them.",
+      "ema": "Understood, David. Our support team has your request and will email you the verified specs for both The Anthony and The Otis. Take your time reviewing them, and feel free to reach out when you're ready."
+    }
+  ],
+  "transcript": [
+    {
+      "role": "ema",
+      "text": ""
+    },
+    {
+      "role": "customer",
+      "text": "Hi, this is David Chen — I'm looking at your couches and I need exact specs before I buy anything. Can you tell me what sofa models you currently have in stock?"
+    },
+    {
+      "role": "ema",
+      "text": "Hi David, nice to meet you."
+    },
+    {
+      "role": "customer",
+      "text": "Nice to meet you too. So which sofa models do you actually have in stock right now?"
+    },
+    {
+      "role": "ema",
+      "text": "The Anthony is a four-seat genuine Italian leather sofa—82 in stock at $3,750. Both are ready to ship. Which one would you like the full specs on first?"
+    },
+    {
+      "role": "customer",
+      "text": "You said \"both\" but I only heard about the Anthony — what's the second model? And for the Anthony, I need overall width, depth, height, seat depth, frame material, and shipping weight."
+    },
+    {
+      "role": "ema",
+      "text": "The second model is The Otis—a modern L-shaped two-piece sectional in beige with walnut accents, 61 in stock at $2,625.90."
+    },
+    {
+      "role": "customer",
+      "text": "Okay, but you skipped my question — I need the Anthony's overall width, depth, height, seat depth, frame material, and shipping weight. Exact numbers, please."
+    },
+    {
+      "role": "ema",
+      "text": "You're right, my apologies."
+    },
+    {
+      "role": "customer",
+      "text": "Then let's have them — width, depth, height, seat depth, frame material, and shipping weight for the Anthony."
+    },
+    {
+      "role": "ema",
+      "text": "David, I've checked every available data source for The Anthony. The exact assembled width, depth, height, seat depth, frame material, and shipping weight aren't listed in the product information. I won't guess at numbers. If you'd like, I can flag this for our team to get you the precise specs, or we can move forward by measuring your space and doorway to see what will fit."
+    },
+    {
+      "role": "customer",
+      "text": "Then flag it — I need those exact specs for both the Anthony and the Otis in writing before I spend anything. Does the Otis have dimensions listed, or is that missing too?"
+    },
+    {
+      "role": "ema",
+      "text": "I've flagged this for our team. Your ticket reference is 8ae62020-3ace-40f2-a265-e57c2891eff5. The Otis lists an engineered wood and solid wood frame, but like The Anthony, the exact assembled dimensions, seat depth, and shipping weight aren't in the product data. Our team will get you the verified numbers in writing. Anything else I can help with in the meantime?"
+    },
+    {
+      "role": "customer",
+      "text": "No, that's it — just make sure those specs come to me in writing by email, and I'm not ordering until I have them."
+    },
+    {
+      "role": "ema",
+      "text": "Understood, David. Our support team has your request and will email you the verified specs for both The Anthony and The Otis. Take your time reviewing them, and feel free to reach out when you're ready."
+    }
+  ],
+  "error": null
+}
