@@ -14,10 +14,11 @@ interface VoiceToken {
   tools?: ChatTool[];
 }
 
-// Slightly faster playback so Ema doesn't sound slow. The realtime API has no
-// native speed param, so we speed up the audio client-side. >1 raises pitch a
-// little; keep it modest. Tunable.
-const VOICE_PLAYBACK_RATE = 1.15;
+// Playback speed for Ema's voice. NOTE: the realtime API has no native speed
+// param, and client-side playbackRate > 1 also RAISES PITCH — which makes Liora
+// sound like a different (higher) voice. Keep at 1.0 for the true Liora voice.
+// (Do not raise this to speed her up — it distorts her voice.)
+const VOICE_PLAYBACK_RATE = 1.0;
 
 interface ChatTool {
   type: string;
