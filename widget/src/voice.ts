@@ -58,6 +58,12 @@ export interface VoiceSessionOpts {
   // Persistent visitor id (shared with text chat) so voice tool calls read/write
   // the same customer memory/profile. Falls back to a per-session id if omitted.
   visitorId?: string;
+  // Mirror of the voice status line so the host widget can surface it even when
+  // the chat panel is closed (e.g. a "listening"/"ended" pill on the launcher).
+  onStatus?: (text: string) => void;
+  // Fired when the session starts (true) and ends (false) so the host can show a
+  // persistent indicator instead of the session dying silently in the background.
+  onActiveChange?: (active: boolean) => void;
 }
 
 function base64FromBytes(bytes: Uint8Array): string {
@@ -129,6 +135,10 @@ export class VoiceSession {
   private inactivityTimer: number | null = null;
   private static readonly INACTIVITY_MS = 90000;
 
+  // Ensures a session's transcript is persisted at most once (normal stop() OR the
+  // pagehide beacon — never both, which would duplicate the customer's history).
+  private logUploaded = false;
+
   constructor(backendUrl: string, container: HTMLElement, opts?: VoiceSessionOpts) {
     this.backendUrl = backendUrl;
     this.container = container;
@@ -144,11 +154,38 @@ export class VoiceSession {
       container.appendChild(statusEl);
     }
     this.statusEl = statusEl;
+
+    // If the customer navigates the store (per Ema's script: "close this chat and
+    // keep looking around") the page unloads and stop() never runs — so flush the
+    // voice transcript to the backend on the way out, or it would be lost forever.
+    this.installUnloadFlush();
+  }
+
+  isActive(): boolean {
+    return this.active;
+  }
+
+  private installUnloadFlush(): void {
+    try {
+      // Only flush on pagehide (true page unload/navigation). NOT on
+      // visibilitychange — that fires on every tab switch and would lock the
+      // upload guard mid-call, dropping the rest of the conversation.
+      window.addEventListener("pagehide", () => {
+        this.beaconLog();
+      });
+    } catch {
+      /* ignore */
+    }
   }
 
   private setStatus(text: string): void {
     try {
       this.statusEl.textContent = text;
+    } catch {
+      /* ignore */
+    }
+    try {
+      this.opts.onStatus?.(text);
     } catch {
       /* ignore */
     }
@@ -290,6 +327,7 @@ export class VoiceSession {
   async start(): Promise<void> {
     this.stopped = false;
     this.active = true;
+    this.logUploaded = false;
     this.resetInactivity();
     this.sessionId = makeSessionId();
     this.transcript = [];
@@ -302,14 +340,21 @@ export class VoiceSession {
     if (this.btn) {
       this.btn.classList.add("tw-voice-active");
     }
+    try {
+      this.opts.onActiveChange?.(true);
+    } catch {
+      /* ignore */
+    }
 
     try {
       this.setStatus("Connecting…");
 
+      // Send the persistent visitor id so the backend can load this customer's
+      // profile + recent conversation (voice AND chat) into Ema's voice context.
       const resp = await fetch(`${this.backendUrl}/voice-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: "{}",
+        body: JSON.stringify({ sessionId: this.visitorId }),
       });
       const tokenData = (await resp.json()) as VoiceToken;
       const token = tokenData.token;
@@ -708,8 +753,14 @@ export class VoiceSession {
 
   private uploadLog(): void {
     try {
+      if (this.logUploaded) return;
+      if (!this.transcript || this.transcript.length === 0) return;
+      this.logUploaded = true;
       const payload = {
         sessionId: this.sessionId,
+        // Persist under the persistent visitor id so voice turns become recallable
+        // by future voice OR text sessions (backend writes them to Postgres).
+        visitorId: this.visitorId,
         transcript: this.transcript,
         meta: { channel: "voice" },
       };
@@ -717,9 +768,42 @@ export class VoiceSession {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        keepalive: true,
       }).catch((): void => {
         /* ignore */
       });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Fire-and-forget transcript persistence for the page-unload path, where a
+  // normal fetch would be cancelled. Uses sendBeacon so the browser delivers it
+  // after navigation starts. Guarded so it never double-saves with uploadLog().
+  private beaconLog(): void {
+    try {
+      if (this.logUploaded) return;
+      if (!this.transcript || this.transcript.length === 0) return;
+      this.logUploaded = true;
+      const payload = JSON.stringify({
+        sessionId: this.sessionId,
+        visitorId: this.visitorId,
+        transcript: this.transcript,
+        meta: { channel: "voice" },
+      });
+      const url = `${this.backendUrl}/session/log`;
+      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        navigator.sendBeacon(url, new Blob([payload], { type: "application/json" }));
+      } else {
+        void fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        }).catch((): void => {
+          /* ignore */
+        });
+      }
     } catch {
       /* ignore */
     }
@@ -822,6 +906,11 @@ export class VoiceSession {
     this.setStatus("");
     if (this.btn) {
       this.btn.classList.remove("tw-voice-active");
+    }
+    try {
+      this.opts.onActiveChange?.(false);
+    } catch {
+      /* ignore */
     }
   }
 }

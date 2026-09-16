@@ -71,6 +71,17 @@ const CFG: Required<TempestConfig> = {
   assistantName: window.TempestConfig?.assistantName || "Ema"
 };
 
+// Continuity across page navigations (same browser): Ema's script tells the
+// customer to close the chat and keep browsing — "I'll still be here." The store
+// reloads the widget on every navigation, so we persist the conversation, the
+// open/closed state, and whether a voice call was live, and restore them on load.
+const HISTORY_KEY = "tw_chat_history";
+const OPEN_KEY = "tw_panel_open";
+const VOICE_ACTIVE_KEY = "tw_voice_active";
+const HISTORY_MAX = 50;
+const OPEN_RESTORE_MS = 30 * 60 * 1000; // reopen if navigated within 30 min
+const VOICE_RESUME_MS = 5 * 60 * 1000; // offer voice resume within 5 min
+
 /* ---- Icons ---- */
 // Sparkle: one large 4-point star + one small 4-point star.
 const SPARKLE = (size = 24) => `
@@ -127,10 +138,16 @@ class TempestWidget {
   private messages: ChatMessage[] = [];
   private isOpen = false;
   private isStreaming = false;
+  private voiceLive = false;
+  private voicePill?: HTMLDivElement;
+  private pillTimer?: number;
 
   constructor(shadow: ShadowRoot) {
     this.root = document.createElement("div");
     this.root.className = "tw-root";
+    // Restore any prior conversation for this browser before building the panel so
+    // the greeting/replay logic knows whether this is a returning session.
+    this.messages = this.loadHistory();
     this.buildLauncher();
     this.buildPanel();
     shadow.appendChild(this.root);
@@ -228,6 +245,8 @@ class TempestWidget {
     this.voice = new VoiceSession(CFG.backendUrl, this.root, {
       onTranscript: (role, text) => this.addMessage(role === "user" ? "user" : "ai", text),
       visitorId: this.sessionId,
+      onStatus: (text) => this.onVoiceStatus(text),
+      onActiveChange: (active) => this.onVoiceActiveChange(active),
     });
     this.voiceBtn = voiceBtn;
     voiceBtn.addEventListener("click", () => this.voice.toggle(voiceBtn));
@@ -257,16 +276,28 @@ class TempestWidget {
     this.dealLock = new DealLock(CFG.backendUrl, this.sessionId, dealLockMount);
     this.dealLock.start();
 
-    // Greeting
-    this.addMessage("ai", `Hi! I'm ${CFG.assistantName}. How can I help you today?`);
+    // Restore the prior conversation (Ema is "still here" across page loads) or
+    // show the first-time greeting if this is a fresh visitor.
+    if (this.messages.length > 0) {
+      for (const m of this.messages) {
+        this.addMessage(m.role === "assistant" ? "ai" : "user", m.content);
+      }
+    } else {
+      this.addMessage("ai", `Hi! I'm ${CFG.assistantName}. How can I help you today?`);
+    }
     this.proactive = new Proactive(this.launcher, this.root, (seed) => { this.open(); if (seed) this.addMessage("ai", seed); }, { voiceGreetingUrl: CFG.backendUrl + "/voice-greeting.mp3" });
     this.proactive.start();
+
+    // Restore panel/voice state from a prior page and persist it on exit.
+    this.installContinuity();
   }
 
   private open() {
     if (this.isOpen) return;
     this.proactive?.suppress();
     this.isOpen = true;
+    this.persistOpenState(true);
+    this.hideVoicePill();
     this.launcher.classList.add("tw-hidden");
     // ensure transition triggers
     requestAnimationFrame(() => this.panel.classList.add("tw-open"));
@@ -283,8 +314,15 @@ class TempestWidget {
   private close() {
     if (!this.isOpen) return;
     this.isOpen = false;
+    this.persistOpenState(false);
     this.panel.classList.remove("tw-open");
     setTimeout(() => this.launcher.classList.remove("tw-hidden"), 180);
+    // Per Ema's script, closing the panel does NOT end the conversation. If a voice
+    // call is live, keep it running and show a persistent indicator so it never dies
+    // silently in the background.
+    if (this.voiceLive) {
+      this.showVoicePill("\u{1F399}️ Ema is listening — tap to open");
+    }
   }
 
   private addMessage(kind: "ai" | "user" | "error", text: string): HTMLDivElement {
@@ -326,6 +364,7 @@ class TempestWidget {
     this.input.value = "";
     this.addMessage("user", text);
     this.messages.push({ role: "user", content: text });
+    this.saveHistory();
 
     this.isStreaming = true;
     this.sendBtn.disabled = true;
@@ -392,6 +431,7 @@ class TempestWidget {
         this.addMessage("error", "Sorry, I couldn't reach the assistant.");
       } else {
         this.messages.push({ role: "assistant", content: acc });
+        this.saveHistory();
       }
     } catch {
       aiEl.remove();
@@ -400,6 +440,169 @@ class TempestWidget {
       this.isStreaming = false;
       this.sendBtn.disabled = false;
       this.input.focus();
+    }
+  }
+
+  /* ---- Cross-page continuity ---- */
+
+  private loadHistory(): ChatMessage[] {
+    try {
+      const raw = window.localStorage.getItem(HISTORY_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .filter(
+          (m: unknown): m is ChatMessage =>
+            !!m &&
+            ((m as ChatMessage).role === "user" || (m as ChatMessage).role === "assistant") &&
+            typeof (m as ChatMessage).content === "string",
+        )
+        .slice(-HISTORY_MAX);
+    } catch {
+      return [];
+    }
+  }
+
+  private saveHistory(): void {
+    try {
+      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(this.messages.slice(-HISTORY_MAX)));
+    } catch {
+      /* ignore (quota/private mode) */
+    }
+  }
+
+  private persistOpenState(open: boolean): void {
+    try {
+      if (open) window.localStorage.setItem(OPEN_KEY, String(Date.now()));
+      else window.localStorage.removeItem(OPEN_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private installContinuity(): void {
+    // Restore the panel + voice affordance from the page the customer came from.
+    try {
+      const openTs = Number(window.localStorage.getItem(OPEN_KEY) || "0");
+      const wasOpen = openTs > 0 && Date.now() - openTs < OPEN_RESTORE_MS;
+
+      const voiceTs = Number(window.localStorage.getItem(VOICE_ACTIVE_KEY) || "0");
+      const voiceWasLive = voiceTs > 0 && Date.now() - voiceTs < VOICE_RESUME_MS;
+      window.localStorage.removeItem(VOICE_ACTIVE_KEY);
+
+      if (wasOpen) {
+        // Restoring an existing session — skip the first-open proactive voice auto-start.
+        this.firstOpened = true;
+        this.open();
+        if (voiceWasLive) {
+          this.addMessage(
+            "ai",
+            "I'm still here — tap the mic whenever you want to pick our voice chat back up. I've got everything we talked about.",
+          );
+        }
+      } else if (voiceWasLive) {
+        // Browsers block auto-starting mic/audio without a gesture, so we invite a
+        // one-tap resume instead of silently (and expensively) reconnecting.
+        this.showVoicePill("\u{1F399}️ Tap to resume our voice chat");
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Persist continuity state whenever the page is navigated away / hidden.
+    try {
+      const persist = (): void => {
+        this.persistOpenState(this.isOpen);
+        try {
+          if (this.voiceLive) {
+            window.localStorage.setItem(VOICE_ACTIVE_KEY, String(Date.now()));
+          }
+        } catch {
+          /* ignore */
+        }
+      };
+      window.addEventListener("pagehide", persist);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") persist();
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /* ---- Voice indicator (visible even when the panel is closed) ---- */
+
+  private ensureVoicePill(): HTMLDivElement {
+    if (this.voicePill) return this.voicePill;
+    const pill = document.createElement("div");
+    pill.className = "tw-voice-pill";
+    pill.style.cssText = [
+      "position:fixed",
+      "right:20px",
+      "bottom:88px",
+      "z-index:2147483647",
+      "max-width:240px",
+      "padding:10px 14px",
+      "border-radius:18px",
+      "background:#111",
+      "color:#fff",
+      "font:500 13px/1.35 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif",
+      "box-shadow:0 6px 24px rgba(0,0,0,.28)",
+      "cursor:pointer",
+      "display:none",
+    ].join(";");
+    pill.addEventListener("click", () => this.open());
+    this.root.appendChild(pill);
+    this.voicePill = pill;
+    return pill;
+  }
+
+  private showVoicePill(text: string, autoHideMs?: number): void {
+    try {
+      const pill = this.ensureVoicePill();
+      pill.textContent = text;
+      pill.style.display = "block";
+      if (this.pillTimer) {
+        clearTimeout(this.pillTimer);
+        this.pillTimer = undefined;
+      }
+      if (autoHideMs) {
+        this.pillTimer = window.setTimeout(() => this.hideVoicePill(), autoHideMs);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private hideVoicePill(): void {
+    try {
+      if (this.pillTimer) {
+        clearTimeout(this.pillTimer);
+        this.pillTimer = undefined;
+      }
+      if (this.voicePill) this.voicePill.style.display = "none";
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private onVoiceStatus(text: string): void {
+    // While the panel is open the in-panel status line is visible; only mirror onto
+    // the launcher pill when the panel is closed and a call is live.
+    if (this.isOpen || !this.voiceLive || !text) return;
+    this.showVoicePill("\u{1F399}️ " + text);
+  }
+
+  private onVoiceActiveChange(active: boolean): void {
+    this.voiceLive = active;
+    if (active) {
+      if (!this.isOpen) this.showVoicePill("\u{1F399}️ Ema is listening — tap to open");
+    } else if (!this.isOpen) {
+      // Surface the end (incl. the 90s inactivity cutoff) so it never dies silently.
+      this.showVoicePill("Voice ended — tap to talk again", 12000);
+    } else {
+      this.hideVoicePill();
     }
   }
 }

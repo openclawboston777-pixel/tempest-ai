@@ -4,11 +4,15 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { logger } from "../logger.js";
 import { putObject, dateKey, sanitizeId } from "../storage/s3.js";
+import { ensureVisitor, saveMessages } from "../memory/store.js";
 
 const MAX_BODY_BYTES = 25 * 1024 * 1024;
 
 // Client-supplied session ids are untrusted: strictly validate shape.
 const SESSION_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
+
+// Persistent visitor ids may also contain underscores.
+const VISITOR_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 // Only these content types may be stored for audio uploads.
 const ALLOWED_AUDIO_TYPES: Record<string, string> = {
@@ -23,6 +27,7 @@ const RATE_LIMIT = { max: 20, timeWindow: "1 minute" } as const;
 
 const LogBody = z.object({
   sessionId: z.string().min(1),
+  visitorId: z.string().optional(),
   transcript: z.array(
     z.object({
       role: z.string(),
@@ -103,6 +108,25 @@ const sessionRoutes: FastifyPluginAsync = async (app) => {
           ),
           "application/json"
         );
+
+        // Also persist voice turns to Postgres so they're recallable cross-channel.
+        // Best-effort only: never changes the HTTP response.
+        const visitorId = parsed.data.visitorId;
+        if (visitorId && VISITOR_ID_RE.test(visitorId)) {
+          try {
+            await ensureVisitor(visitorId);
+            const toSave = transcript
+              .filter((t) => t && typeof t.text === "string" && t.text.trim())
+              .map((t) => ({
+                role: t.role === "ai" ? "assistant" : "user",
+                content: t.text,
+              }));
+            if (toSave.length) await saveMessages(visitorId, toSave);
+          } catch (err) {
+            logger.warn({ err: String(err) }, "session/log: memory persist failed");
+          }
+        }
+
         return { ok: config.storageEnabled, key: config.storageEnabled ? key : null };
       } catch (err) {
         logger.error({ err }, "session/log failed");

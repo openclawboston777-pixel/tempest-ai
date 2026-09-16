@@ -3,7 +3,12 @@ import { z } from "zod";
 import { EMA_SYSTEM_PROMPT } from "../ema/systemPrompt.js";
 import { XaiTextProvider } from "../providers/xaiTextProvider.js";
 import type { ChatMessage, TextProvider } from "../providers/textProvider.js";
-import { ensureVisitor, getProfileContext, saveMessages } from "../memory/store.js";
+import {
+  ensureVisitor,
+  getProfileContext,
+  getRecentMessages,
+  saveMessages,
+} from "../memory/store.js";
 import { logEvent } from "../memory/analytics.js";
 import { logger } from "../logger.js";
 
@@ -52,6 +57,7 @@ export const chatRoutes: FastifyPluginAsync = async (app) => {
 
     // Load returning-customer memory (best-effort; never blocks/breaks chat).
     let memoryContext: string | null = null;
+    let historyContext: string | null = null;
     if (sessionId) {
       try {
         await ensureVisitor(sessionId, String(request.headers["user-agent"] || ""));
@@ -62,11 +68,33 @@ export const chatRoutes: FastifyPluginAsync = async (app) => {
       } catch (err) {
         logger.warn({ err: String(err) }, "chat: memory load failed");
       }
+
+      // Re-inject prior turns (including voice) the client did not send.
+      try {
+        const recent = await getRecentMessages(sessionId, 20);
+        const normalize = (s: string): string => s.toLowerCase().replace(/\s+/g, " ").trim();
+        const clientContentSet = new Set(
+          parsed.data.messages.map((m) => normalize(m.content || "")),
+        );
+        const priorTurns = recent.filter(
+          (m) => m.content && !clientContentSet.has(normalize(m.content)),
+        );
+        if (priorTurns.length > 0) {
+          historyContext =
+            "Earlier conversation with this returning customer (including any voice conversations), oldest first. Continue naturally; do not re-introduce yourself:\n" +
+            priorTurns
+              .map((m) => `${m.role === "assistant" ? "Ema" : "Customer"}: ${m.content}`)
+              .join("\n");
+        }
+      } catch (err) {
+        logger.warn({ err: String(err) }, "chat: history load failed");
+      }
     }
 
     const messages: ChatMessage[] = [
       { role: "system", content: EMA_SYSTEM_PROMPT },
       ...(memoryContext ? [{ role: "system" as const, content: memoryContext }] : []),
+      ...(historyContext ? [{ role: "system" as const, content: historyContext }] : []),
       ...parsed.data.messages,
     ];
 

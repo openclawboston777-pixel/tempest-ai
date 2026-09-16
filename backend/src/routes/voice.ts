@@ -7,15 +7,27 @@ import { toolDefs, executeTool } from "../tools/index.js";
 import { config } from "../config.js";
 import { allow } from "../costGuard.js";
 import { logger } from "../logger.js";
+import {
+  ensureVisitor,
+  getProfileContext,
+  getRecentMessages,
+} from "../memory/store.js";
+
+// Client-supplied session/visitor ids are untrusted: strictly validate shape.
+const SESSION_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 const toolBodySchema = z.object({
   query: z.string().optional().default(""),
 });
 
+const voiceTokenBodySchema = z.object({
+  sessionId: z.string().optional(),
+});
+
 export const voiceRoutes: FastifyPluginAsync = async (app) => {
   const provider: VoiceProvider = new XaiVoiceProvider();
 
-  app.post("/voice-token", async (_request, reply) => {
+  app.post("/voice-token", async (request, reply) => {
     try {
       // Global daily cap on realtime-voice sessions (xAI minutes = cost).
       if (!allow("voice_token", config.voiceTokensMaxPerDay)) {
@@ -23,10 +35,45 @@ export const voiceRoutes: FastifyPluginAsync = async (app) => {
         return;
       }
       const token = await provider.mintEphemeralToken();
+
+      // Cross-channel memory (best-effort; never blocks token minting).
+      let instructions = EMA_VOICE_INSTRUCTIONS;
+      try {
+        const parsedBody = voiceTokenBodySchema.safeParse(request.body ?? {});
+        const sessionId =
+          parsedBody.success &&
+          parsedBody.data.sessionId &&
+          SESSION_ID_RE.test(parsedBody.data.sessionId)
+            ? parsedBody.data.sessionId
+            : undefined;
+        if (sessionId) {
+          const uaRaw = String(request.headers["user-agent"] || "");
+          await ensureVisitor(sessionId, uaRaw);
+          const profileCtx = await getProfileContext(sessionId);
+          const recent = await getRecentMessages(sessionId, 12);
+          let historyBlock: string | null = null;
+          if (recent.length > 0) {
+            historyBlock =
+              "RECENT CONVERSATION WITH THIS CUSTOMER (both voice and chat), oldest first. You have already met this customer — do NOT restart your introduction or ask their name again if it appears below. Continue naturally from where you left off:\n" +
+              recent
+                .map(
+                  (m) =>
+                    `${m.role === "assistant" ? "You (Ema)" : "Customer"}: ${m.content}`,
+                )
+                .join("\n");
+          }
+          if (profileCtx) instructions += "\n\n" + profileCtx;
+          if (historyBlock) instructions += "\n\n" + historyBlock;
+        }
+      } catch (err) {
+        logger.warn({ err: String(err) }, "voice-token: memory load failed");
+        instructions = EMA_VOICE_INSTRUCTIONS;
+      }
+
       return {
         ...token,
         voice: config.xaiVoice,
-        instructions: EMA_VOICE_INSTRUCTIONS,
+        instructions,
         // Spoken-form fixes applied before TTS (transcript keeps the original).
         // "Ema" -> "Emma" so it's pronounced "EH-mah", not "EE-ma".
         replace: { Ema: "Emma" },
@@ -64,7 +111,6 @@ export const voiceRoutes: FastifyPluginAsync = async (app) => {
   // remember_customer, favorites, get_product_economics, create_offer) so voice
   // is as capable as text. Returns the raw JSON-string output for the model.
   const KNOWN_TOOLS = new Set(toolDefs.map((t) => t.function.name));
-  const SESSION_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
   const voiceToolSchema = z.object({
     name: z.string(),
     arguments: z.union([z.string(), z.record(z.any())]).optional(),
