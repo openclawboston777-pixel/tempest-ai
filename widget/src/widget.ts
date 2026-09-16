@@ -140,6 +140,8 @@ class TempestWidget {
   private isStreaming = false;
   private voiceLive = false;
   private voicePill?: HTMLDivElement;
+  private voicePillLabel?: HTMLSpanElement;
+  private voicePillEnd?: HTMLButtonElement;
   private pillTimer?: number;
   private lastVoiceRole?: "user" | "ai";
   private lastVoiceEl?: HTMLDivElement;
@@ -327,7 +329,12 @@ class TempestWidget {
     // the MIC button is how you actually end the voice conversation. Voice turns keep
     // persisting to history, so reopening shows the full conversation.
     if (this.voiceLive) {
-      this.showVoicePill("\u{1F399}️ Ema is still listening — tap to reopen");
+      this.showVoicePill("\u{1F399}️ Ema is still listening — tap to reopen", { showEnd: true });
+      // Fail-closed: never leave a hot mic with no visible disclosure. If the
+      // live-mic indicator didn't actually render, end the call instead.
+      if (!this.voicePillVisible()) {
+        try { this.voice.stop(); } catch { /* ignore */ }
+      }
     }
   }
 
@@ -548,36 +555,65 @@ class TempestWidget {
       "right:20px",
       "bottom:88px",
       "z-index:2147483647",
-      "max-width:240px",
-      "padding:10px 14px",
+      "max-width:300px",
+      "padding:10px 12px",
       "border-radius:18px",
       "background:#111",
       "color:#fff",
       "font:500 13px/1.35 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif",
       "box-shadow:0 6px 24px rgba(0,0,0,.28)",
-      "cursor:pointer",
       "display:none",
+      "align-items:center",
+      "gap:8px",
     ].join(";");
-    pill.addEventListener("click", () => this.open());
+    const label = document.createElement("span");
+    label.style.cssText = "cursor:pointer;flex:1;";
+    label.addEventListener("click", () => this.open());
+    // Explicit hang-up so a customer can end the live mic while browsing without
+    // reopening the panel — an unambiguous end-call control on the recording pill.
+    const endBtn = document.createElement("button");
+    endBtn.textContent = "End call";
+    endBtn.setAttribute("aria-label", "End voice call");
+    endBtn.style.cssText =
+      "border:0;border-radius:12px;background:#e5484d;color:#fff;font:600 12px system-ui;padding:5px 10px;cursor:pointer;display:none;flex:none;";
+    endBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      try { this.voice.stop(); } catch { /* ignore */ }
+      this.hideVoicePill();
+    });
+    pill.appendChild(label);
+    pill.appendChild(endBtn);
     this.root.appendChild(pill);
     this.voicePill = pill;
+    this.voicePillLabel = label;
+    this.voicePillEnd = endBtn;
     return pill;
   }
 
-  private showVoicePill(text: string, autoHideMs?: number): void {
+  private showVoicePill(text: string, opts?: { autoHideMs?: number; showEnd?: boolean }): void {
     try {
       const pill = this.ensureVoicePill();
-      pill.textContent = text;
-      pill.style.display = "block";
+      if (this.voicePillLabel) this.voicePillLabel.textContent = text;
+      if (this.voicePillEnd) this.voicePillEnd.style.display = opts?.showEnd ? "inline-block" : "none";
+      pill.style.display = "flex";
       if (this.pillTimer) {
         clearTimeout(this.pillTimer);
         this.pillTimer = undefined;
       }
-      if (autoHideMs) {
-        this.pillTimer = window.setTimeout(() => this.hideVoicePill(), autoHideMs);
+      if (opts?.autoHideMs) {
+        this.pillTimer = window.setTimeout(() => this.hideVoicePill(), opts.autoHideMs);
       }
     } catch {
       /* ignore */
+    }
+  }
+
+  // True only if the live-mic indicator actually rendered and is visible.
+  private voicePillVisible(): boolean {
+    try {
+      return !!this.voicePill && this.voicePill.isConnected && this.voicePill.style.display !== "none";
+    } catch {
+      return false;
     }
   }
 
@@ -621,16 +657,16 @@ class TempestWidget {
     // While the panel is open the in-panel status line is visible; only mirror onto
     // the launcher pill when the panel is closed and a call is live.
     if (this.isOpen || !this.voiceLive || !text) return;
-    this.showVoicePill("\u{1F399}️ " + text);
+    this.showVoicePill("\u{1F399}️ " + text, { showEnd: true });
   }
 
   private onVoiceActiveChange(active: boolean): void {
     this.voiceLive = active;
     if (active) {
-      if (!this.isOpen) this.showVoicePill("\u{1F399}️ Ema is listening — tap to open");
+      if (!this.isOpen) this.showVoicePill("\u{1F399}️ Ema is listening — tap to open", { showEnd: true });
     } else if (!this.isOpen) {
       // Surface the end (incl. the 90s inactivity cutoff) so it never dies silently.
-      this.showVoicePill("Voice ended — tap to talk again", 12000);
+      this.showVoicePill("Voice ended — tap to talk again", { autoHideMs: 12000 });
     } else {
       this.hideVoicePill();
     }
