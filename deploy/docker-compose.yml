@@ -9,7 +9,9 @@ services:
     env_file:
       - ./.env
     ports:
-      - "8090:8080"
+      # Bind to loopback only — Caddy (127.0.0.1) reverse-proxies to it. Never
+      # publish the backend on all interfaces (that bypasses Caddy/TLS/rate limits).
+      - "127.0.0.1:8090:8080"
     restart: unless-stopped
     depends_on:
       postgres:

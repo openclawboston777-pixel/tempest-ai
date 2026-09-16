@@ -28,13 +28,18 @@ export async function buildApp() {
     config.corsOrigin.trim() === "*"
       ? "*"
       : (origin, cb) => {
-          if (!origin) return cb(null, true); // same-origin / non-browser
-          let host = "";
+          if (!origin) return cb(null, true); // same-origin / non-browser (no Origin header)
+          let u: URL;
           try {
-            host = new URL(origin).hostname.toLowerCase();
+            u = new URL(origin);
           } catch {
-            return cb(null, false);
+            return cb(null, false); // unparseable (e.g. "null")
           }
+          // Only allow secure origins on the standard HTTPS port — reject http://
+          // and non-standard ports (e.g. :444) even if the hostname would match.
+          if (u.protocol !== "https:") return cb(null, false);
+          if (u.port && u.port !== "443") return cb(null, false);
+          const host = u.hostname.toLowerCase();
           const allow = config.corsOrigin
             .split(",")
             .map((s) => s.trim())
@@ -42,6 +47,8 @@ export async function buildApp() {
             .some((entry) => {
               const e = entry.toLowerCase();
               if (e.startsWith("*.")) {
+                // Wildcard: require a real dot-boundary subdomain match (never a
+                // substring like "evilmyshopify.com" matching "*.myshopify.com").
                 const base = e.slice(2);
                 return host === base || host.endsWith("." + base);
               }
@@ -49,7 +56,7 @@ export async function buildApp() {
               try {
                 eh = new URL(e).hostname.toLowerCase();
               } catch {
-                /* bare host */
+                /* bare host entry */
               }
               return host === eh;
             });

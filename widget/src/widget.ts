@@ -52,8 +52,22 @@ declare global {
   }
 }
 
+// Where is this embed.js being served from? If the store forgets to set
+// window.TempestConfig.backendUrl, we self-configure to the origin that served
+// embed.js (e.g. https://ema.tempestfurnitur.com) — production-safe. localhost is
+// only a last-resort dev fallback.
+const SCRIPT_ORIGIN: string = (() => {
+  try {
+    const s = document.currentScript as HTMLScriptElement | null;
+    if (s && s.src) return new URL(s.src).origin;
+  } catch {
+    /* ignore */
+  }
+  return "";
+})();
+
 const CFG: Required<TempestConfig> = {
-  backendUrl: window.TempestConfig?.backendUrl || "http://localhost:8080",
+  backendUrl: window.TempestConfig?.backendUrl || SCRIPT_ORIGIN || "http://localhost:8080",
   assistantName: window.TempestConfig?.assistantName || "Ema"
 };
 
