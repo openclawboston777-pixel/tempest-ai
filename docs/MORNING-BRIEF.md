@@ -1,3 +1,42 @@
+# Morning brief — Conversation continuity + cross-channel voice memory (2026-09-16)
+
+Fixed a set of real production bugs a customer hit during a LIVE voice session: closing
+the chat to browse (which Ema's script explicitly invites) wiped the conversation, voice
+was stateless, and a returning customer wasn't recognized. Scoped strictly to those bugs.
+
+## Done (live + verified; branch slice1-widget, commit "Fix Ema conversation continuity…")
+- **A — Chat persists across page navigations.** Widget saves the conversation, open/closed
+  state, and voice-live flag to localStorage (`tw_chat_history`, `tw_panel_open`,
+  `tw_voice_active`) and restores them on the next page, so Ema is genuinely "still here."
+  New-visitor greeting only shows when there's no history.
+- **B — Voice now has memory.** `/voice-token` loads the visitor's profile + recent history
+  into the voice instructions; the widget sends its visitor id; voice transcripts are
+  persisted to Postgres (via `/session/log` + a `pagehide` `sendBeacon` flush) so they
+  survive navigation and are recallable by either channel.
+- **C — Recent turns re-injected** into both text chat and voice, deduped against what the
+  client already sent — wired up the previously-dead `getRecentMessages()`.
+- **D — Voice no longer dies silently.** Closing the panel keeps a live call running with a
+  visible "listening" pill; the 90s inactivity cutoff surfaces a visible notice; after a
+  navigation a one-tap "resume voice" affordance restores it with full context (browsers
+  block gesture-less mic auto-start, so seamless auto-reconnect isn't possible).
+
+All memory paths are best-effort — they can never break token minting, the chat stream, or
+the S3 log. **eval 28/28.** End-to-end verified: a simulated voice conversation ("Marcus,
+grey sectional, small apartment, under $3k") was recalled in a later *text* chat. Production
+`/health` 200 and the new widget bundle is live. `EMA_SALES_SCRIPT` untouched.
+
+## Notes / judgment calls (review when you're back)
+- Panel auto-reopens across pages only if it was open within the last 30 min; voice "resume"
+  affordance offered only within 5 min of the call.
+- Pre-existing (not introduced here): `widget/src/voice.ts` has an unused `this.container`
+  field that `tsc --noEmit` flags; the production build is `vite build` (esbuild), which is
+  clean. Left alone to respect scope — trivial to remove if you want a clean tsc.
+- Deferred (needs your call): truly seamless live audio across page loads would require a
+  pop-out window or SPA storefront (both heavy/fragile); the one-tap resume is the pragmatic
+  path. S3 remains archive-only; Postgres is the live recall store.
+
+---
+
 # Update — Liora voice, grok-4.20 + tic fix, production domain/CORS (2026-09-15)
 
 - **Voice = Liora** (calm, grounded, luminous) — set live. Voice runs on the separate speech-to-speech model; test by tapping the mic.
