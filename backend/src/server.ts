@@ -20,7 +20,21 @@ import { migrate } from "./db/pool.js";
 import { purgeExpired as purgeMemory } from "./memory/store.js";
 
 export async function buildApp() {
-  const app = Fastify({ logger: false, bodyLimit: 25 * 1024 * 1024 });
+  // trustProxy: the backend never faces the internet directly — it binds to
+  // 127.0.0.1:8090 and Caddy reverse-proxies to it, so the socket peer is always
+  // the proxy (the Docker bridge gateway, e.g. 172.x.x.1, not loopback). Without
+  // this, `request.ip` is that single proxy address for EVERY visitor, so the
+  // per-IP rate limiter below buckets the whole store into one 60/min quota: one
+  // shopper's voice call (/voice-token, /voice/tool, /session/log, /session/audio)
+  // can exhaust it and the next /chat gets a 429, which the widget surfaces as
+  // "Sorry, I couldn't reach the assistant." Trusting the private/loopback hop
+  // restores the real client IP from X-Forwarded-For. Safe here precisely because
+  // only the proxy can reach this port.
+  const app = Fastify({
+    logger: false,
+    bodyLimit: 25 * 1024 * 1024,
+    trustProxy: "loopback, linklocal, uniquelocal",
+  });
 
   // CORS: "*" allows all; otherwise a comma-separated allowlist of origins/hosts.
   // Entries may be full origins (https://x.com), bare hosts (x.com), or wildcard
