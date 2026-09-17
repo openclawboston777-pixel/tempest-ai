@@ -44,6 +44,10 @@ interface TempestConfig {
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  // "voice" marks a turn that came from the spoken conversation. Such turns are
+  // kept in history (memory, recall, continuity, storage) but are never rendered
+  // as chat bubbles — a spoken conversation stays spoken. Absent => text chat.
+  channel?: "voice";
 }
 
 declare global {
@@ -281,9 +285,12 @@ class TempestWidget {
     this.dealLock.start();
 
     // Restore the prior conversation (Ema is "still here" across page loads) or
-    // show the first-time greeting if this is a fresh visitor.
-    if (this.messages.length > 0) {
-      for (const m of this.messages) {
+    // show the first-time greeting if this is a fresh visitor. Voice-derived turns
+    // stay in this.messages (memory/recall/continuity) but are never re-rendered,
+    // so a past spoken conversation doesn't come back as a wall of text.
+    const restorable = this.messages.filter((m) => m.channel !== "voice");
+    if (restorable.length > 0) {
+      for (const m of restorable) {
         this.addMessage(m.role === "assistant" ? "ai" : "user", m.content);
       }
     } else {
@@ -470,6 +477,13 @@ class TempestWidget {
             ((m as ChatMessage).role === "user" || (m as ChatMessage).role === "assistant") &&
             typeof (m as ChatMessage).content === "string",
         )
+        // Normalize the channel marker so a voice turn stays flagged across reloads
+        // (and a malformed stored value can never masquerade as one).
+        .map((m: ChatMessage): ChatMessage => ({
+          role: m.role,
+          content: m.content,
+          ...(m.channel === "voice" ? { channel: "voice" as const } : {}),
+        }))
         .slice(-HISTORY_MAX);
     } catch {
       return [];
@@ -632,22 +646,25 @@ class TempestWidget {
   // (so they persist across page loads and are sent to the backend for recall),
   // matching how a "proper" sales chat remembers a call.
   //
-  // They are deliberately NOT rendered as chat bubbles: a spoken conversation should
-  // stay spoken, so the customer isn't reading a live transcript of their own voice.
-  // This suppresses ONLY transcript-derived bubbles — proactive/welcome bubbles, the
-  // recording notice, the voice status pill and text chat all render as before.
+  // They are tagged `channel: "voice"` and deliberately NOT rendered as chat bubbles,
+  // now or when history is restored: a spoken conversation stays spoken, so the
+  // customer never reads a transcript of their own voice. This suppresses ONLY
+  // transcript-derived bubbles — proactive/welcome bubbles, the recording notice,
+  // the voice status pill and text chat all render as before.
   private onVoiceTranscript(role: "user" | "ai", text: string, replace: boolean): void {
     const mrole: "user" | "assistant" = role === "user" ? "user" : "assistant";
+    const last = this.messages[this.messages.length - 1];
     const canReplace =
       replace &&
       this.lastVoiceRole === role &&
-      this.messages.length > 0 &&
-      this.messages[this.messages.length - 1].role === mrole;
+      !!last &&
+      last.role === mrole &&
+      last.channel === "voice";
     if (canReplace) {
-      this.messages[this.messages.length - 1].content = text;
+      last.content = text;
     } else {
       this.lastVoiceRole = role;
-      this.messages.push({ role: mrole, content: text });
+      this.messages.push({ role: mrole, content: text, channel: "voice" });
     }
     this.saveHistory();
   }
