@@ -144,7 +144,6 @@ class TempestWidget {
   private voicePillEnd?: HTMLButtonElement;
   private pillTimer?: number;
   private lastVoiceRole?: "user" | "ai";
-  private lastVoiceEl?: HTMLDivElement;
 
   constructor(shadow: ShadowRoot) {
     this.root = document.createElement("div");
@@ -629,24 +628,24 @@ class TempestWidget {
     }
   }
 
-  // Voice turns flow into the SAME conversation as text: rendered in the panel,
-  // pushed into this.messages (so they persist across page loads and are sent to
-  // the backend for recall), matching how a "proper" sales chat remembers a call.
+  // Voice turns flow into the SAME conversation as text: pushed into this.messages
+  // (so they persist across page loads and are sent to the backend for recall),
+  // matching how a "proper" sales chat remembers a call.
+  //
+  // They are deliberately NOT rendered as chat bubbles: a spoken conversation should
+  // stay spoken, so the customer isn't reading a live transcript of their own voice.
+  // This suppresses ONLY transcript-derived bubbles — proactive/welcome bubbles, the
+  // recording notice, the voice status pill and text chat all render as before.
   private onVoiceTranscript(role: "user" | "ai", text: string, replace: boolean): void {
-    const kind = role === "user" ? "user" : "ai";
     const mrole: "user" | "assistant" = role === "user" ? "user" : "assistant";
     const canReplace =
       replace &&
       this.lastVoiceRole === role &&
-      !!this.lastVoiceEl &&
       this.messages.length > 0 &&
       this.messages[this.messages.length - 1].role === mrole;
     if (canReplace) {
-      this.lastVoiceEl!.textContent = text;
       this.messages[this.messages.length - 1].content = text;
-      this.scrollToBottom();
     } else {
-      this.lastVoiceEl = this.addMessage(kind, text);
       this.lastVoiceRole = role;
       this.messages.push({ role: mrole, content: text });
     }
