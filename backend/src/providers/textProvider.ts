@@ -5,6 +5,13 @@ export interface ChatMessage {
   tool_call_id?: string;
 }
 
+export interface ToolContext {
+  sessionId?: string;
+}
+
 export interface TextProvider {
-  streamChat(messages: ChatMessage[]): AsyncGenerator<string>;
+  streamChat(
+    messages: ChatMessage[],
+    ctx?: ToolContext,
+  ): AsyncGenerator<string>;
 }

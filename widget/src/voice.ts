@@ -1,0 +1,1001 @@
+// VoiceSession: browser client for xAI/Grok realtime Speech-to-Speech
+// over WebSocket streaming raw PCM audio (24kHz).
+//
+// Adds: user + assistant transcripts, full-session audio recording (mic +
+// assistant playback mixed), proactive greeting, and end-of-session upload
+// of the recording and transcript log to the backend.
+
+interface VoiceToken {
+  token: string;
+  model?: string;
+  instructions?: string;
+  voice?: string;
+  replace?: Record<string, string>;
+  tools?: ChatTool[];
+}
+
+// Playback speed for Ema's voice. NOTE: the realtime API has no native speed
+// param, and client-side playbackRate > 1 also RAISES PITCH — which makes Liora
+// sound like a different (higher) voice. Keep at 1.0 for the true Liora voice.
+// (Do not raise this to speed her up — it distorts her voice.)
+const VOICE_PLAYBACK_RATE = 1.0;
+
+interface ChatTool {
+  type: string;
+  function?: {
+    name: string;
+    description?: string;
+    parameters?: unknown;
+  };
+}
+
+interface RealtimeTool {
+  type: string;
+  name: string;
+  description?: string;
+  parameters?: unknown;
+}
+
+interface RealtimeEvent {
+  type: string;
+  delta?: string;
+  text?: string;
+  transcript?: string;
+  name?: string;
+  call_id?: string;
+  arguments?: string;
+  error?: { message?: string };
+}
+
+export interface TranscriptEntry {
+  role: "user" | "ai";
+  text: string;
+  ts: number;
+}
+
+export interface VoiceSessionOpts {
+  // Called once per finalized turn so the host can render voice turns in the chat
+  // and persist them. `replace` = the previous turn of this role was extended
+  // (update the last bubble in place) rather than a brand-new turn (append).
+  onTranscript?: (role: "user" | "ai", text: string, opts?: { replace?: boolean }) => void;
+  // Persistent visitor id (shared with text chat) so voice tool calls read/write
+  // the same customer memory/profile. Falls back to a per-session id if omitted.
+  visitorId?: string;
+  // Mirror of the voice status line so the host widget can surface it even when
+  // the chat panel is closed (e.g. a "listening"/"ended" pill on the launcher).
+  onStatus?: (text: string) => void;
+  // Fired when the session starts (true) and ends (false) so the host can show a
+  // persistent indicator instead of the session dying silently in the background.
+  onActiveChange?: (active: boolean) => void;
+}
+
+function base64FromBytes(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, Array.from(chunk) as number[]);
+  }
+  return btoa(binary);
+}
+
+function bytesFromBase64(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function makeSessionId(): string {
+  try {
+    const c = (globalThis as unknown as { crypto?: Crypto }).crypto;
+    if (c && typeof c.randomUUID === "function") {
+      return c.randomUUID();
+    }
+  } catch {
+    /* ignore */
+  }
+  return "sess-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+}
+
+export class VoiceSession {
+  private backendUrl: string;
+  private container: HTMLElement;
+  private statusEl: HTMLElement;
+  private btn: HTMLElement | null = null;
+  private opts: VoiceSessionOpts;
+
+  private active = false;
+  private stopped = false;
+
+  private sessionId: string = makeSessionId();
+  private visitorId: string = makeSessionId();
+  private transcript: TranscriptEntry[] = [];
+
+  private stream: MediaStream | null = null;
+  private audioCtx: AudioContext | null = null;
+  private ws: WebSocket | null = null;
+  private src: MediaStreamAudioSourceNode | null = null;
+  private proc: ScriptProcessorNode | null = null;
+  private sink: GainNode | null = null;
+
+  private dest: MediaStreamAudioDestinationNode | null = null;
+  private recorder: MediaRecorder | null = null;
+  private chunks: Blob[] = [];
+
+  private nextTime = 0;
+
+  // Transcript accumulators.
+  private userTurnText = "";
+  private userTurnEmitted = false;
+  private aiTurnText = "";
+  private aiTurnEmitted = false;
+
+  // Inactivity cutoff: end the paid voice session after 90s of no customer speech.
+  private inactivityTimer: number | null = null;
+  private static readonly INACTIVITY_MS = 90000;
+
+  // Non-buying cutoff: if ~15 min pass without the call becoming a genuine buying
+  // conversation (no product/offer/favorite tool ever used), Ema politely wraps up.
+  // A real shopping call is exempt (buyingSignal) and continues normally.
+  private nonBuyingTimer: number | null = null;
+  private buyingSignal = false;
+  private sessionStartMs = 0;
+  private static readonly NONBUYING_MS = 15 * 60 * 1000;
+  private static readonly BUYING_TOOLS = new Set([
+    "get_products",
+    "get_product_economics",
+    "create_offer",
+    "record_favorite",
+    "set_favorite_status",
+  ]);
+
+  // Ensures a session's transcript is persisted at most once (normal stop() OR the
+  // pagehide beacon — never both, which would duplicate the customer's history).
+  private logUploaded = false;
+
+  constructor(backendUrl: string, container: HTMLElement, opts?: VoiceSessionOpts) {
+    this.backendUrl = backendUrl;
+    this.container = container;
+    this.opts = opts || {};
+    if (opts && typeof opts.visitorId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(opts.visitorId)) {
+      this.visitorId = opts.visitorId;
+    }
+
+    let statusEl = container.querySelector<HTMLElement>(".tw-voice-status");
+    if (!statusEl) {
+      statusEl = document.createElement("div");
+      statusEl.className = "tw-voice-status";
+      container.appendChild(statusEl);
+    }
+    this.statusEl = statusEl;
+
+    // If the customer navigates the store (per Ema's script: "close this chat and
+    // keep looking around") the page unloads and stop() never runs — so flush the
+    // voice transcript to the backend on the way out, or it would be lost forever.
+    this.installUnloadFlush();
+  }
+
+  isActive(): boolean {
+    return this.active;
+  }
+
+  private installUnloadFlush(): void {
+    try {
+      // Only flush on pagehide (true page unload/navigation). NOT on
+      // visibilitychange — that fires on every tab switch and would lock the
+      // upload guard mid-call, dropping the rest of the conversation.
+      window.addEventListener("pagehide", () => {
+        this.beaconLog();
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private setStatus(text: string): void {
+    try {
+      this.statusEl.textContent = text;
+    } catch {
+      /* ignore */
+    }
+    try {
+      this.opts.onStatus?.(text);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private clearInactivity(): void {
+    if (this.inactivityTimer !== null) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
+  }
+
+  // Restart the 90s no-response countdown. Called whenever there's activity
+  // (session start, customer speaks, Ema finishes a turn).
+  private resetInactivity(): void {
+    this.clearInactivity();
+    this.inactivityTimer = window.setTimeout(() => {
+      if (this.active) {
+        this.setStatus("Ended — tap to talk again");
+        this.stop();
+      }
+    }, VoiceSession.INACTIVITY_MS);
+  }
+
+  private clearNonBuying(): void {
+    if (this.nonBuyingTimer !== null) {
+      clearTimeout(this.nonBuyingTimer);
+      this.nonBuyingTimer = null;
+    }
+  }
+
+  // Fired ~15 min into a call. If it never became a genuine buying conversation,
+  // have Ema deliver a warm shut-off line, then end the paid session shortly after.
+  private onNonBuyingTimeout(): void {
+    if (!this.active || this.buyingSignal) return; // real shopping call → let it run
+    try {
+      const ws = this.ws;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({
+            type: "response.create",
+            response: {
+              instructions:
+                "This call has gone about fifteen minutes without becoming a genuine buying conversation. Warmly and briefly tell the customer that you're set up to focus on helping people find and buy the right couch, so you're going to wrap up here — invite them to come back anytime they want couch help — then stop speaking.",
+            },
+          }),
+        );
+      }
+    } catch {
+      /* ignore */
+    }
+    this.setStatus("Wrapping up…");
+    // Give Ema ~15s to say the line, then end the paid session.
+    window.setTimeout(() => {
+      if (this.active) this.stop();
+    }, 15000);
+  }
+
+  private emitTranscript(role: "user" | "ai", text: string): void {
+    const clean = (text || "").trim();
+    if (!clean) {
+      return;
+    }
+    const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+    const last = this.transcript[this.transcript.length - 1];
+    if (
+      last &&
+      last.role === role &&
+      (norm(clean) === norm(last.text) ||
+        norm(clean).startsWith(norm(last.text)) ||
+        norm(last.text).startsWith(norm(clean)))
+    ) {
+      // Same turn: merge partial/duplicate transcription into one clean entry.
+      if (clean.length >= last.text.length) last.text = clean;
+      last.ts = Date.now();
+      // Update the already-rendered bubble in place so the voice conversation
+      // shows (and persists) as one clean turn.
+      try {
+        this.opts.onTranscript?.(role, last.text, { replace: true });
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    this.transcript.push({ role, text: clean, ts: Date.now() });
+    // Surface the finalized voice turn to the host so it renders in the chat,
+    // persists across page loads, and is sent to the backend for recall.
+    try {
+      this.opts.onTranscript?.(role, clean, { replace: false });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private flushUserTurn(): void {
+    if (this.userTurnEmitted) {
+      return;
+    }
+    const text = this.userTurnText.trim();
+    if (!text) {
+      this.userTurnText = "";
+      return;
+    }
+    this.userTurnEmitted = true;
+    this.emitTranscript("user", text);
+    this.userTurnText = "";
+    this.userTurnEmitted = false;
+  }
+
+  private flushAiTurn(): void {
+    if (this.aiTurnEmitted) {
+      return;
+    }
+    const text = this.aiTurnText.trim();
+    if (!text) {
+      this.aiTurnText = "";
+      return;
+    }
+    this.aiTurnEmitted = true;
+    this.emitTranscript("ai", text);
+    this.aiTurnText = "";
+    this.aiTurnEmitted = false;
+  }
+
+  toggle(btn?: HTMLElement): void {
+    if (btn) {
+      this.btn = btn;
+    }
+    if (this.active) {
+      this.stop();
+    } else {
+      void this.start();
+    }
+  }
+
+  async startProactive(btn?: HTMLElement): Promise<void> {
+    if (btn) {
+      this.btn = btn;
+      btn.classList.add("tw-voice-active");
+    }
+    await this.start();
+    // Ema greets first; send once the socket is open + session.update flushed.
+    try {
+      const ws = this.ws;
+      if (!ws || this.stopped) {
+        return;
+      }
+      const sendGreeting = (): void => {
+        try {
+          if (this.stopped || ws.readyState !== WebSocket.OPEN) {
+            return;
+          }
+          ws.send(
+            JSON.stringify({
+              type: "response.create",
+              response: {
+                instructions:
+                  "Warmly greet the customer in one short sentence and ask how you can help.",
+              },
+            }),
+          );
+        } catch {
+          /* ignore */
+        }
+      };
+      if (ws.readyState === WebSocket.OPEN) {
+        sendGreeting();
+      } else {
+        const prev = ws.onopen;
+        ws.onopen = (e: Event): void => {
+          try {
+            if (typeof prev === "function") {
+              (prev as (this: WebSocket, ev: Event) => unknown).call(ws, e);
+            }
+          } catch {
+            /* ignore */
+          }
+          sendGreeting();
+        };
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async start(): Promise<void> {
+    this.stopped = false;
+    this.active = true;
+    this.logUploaded = false;
+    this.buyingSignal = false;
+    this.sessionStartMs = Date.now();
+    this.resetInactivity();
+    this.clearNonBuying();
+    this.nonBuyingTimer = window.setTimeout(() => this.onNonBuyingTimeout(), VoiceSession.NONBUYING_MS);
+    this.sessionId = makeSessionId();
+    this.transcript = [];
+    this.chunks = [];
+    this.userTurnText = "";
+    this.userTurnEmitted = false;
+    this.aiTurnText = "";
+    this.aiTurnEmitted = false;
+
+    if (this.btn) {
+      this.btn.classList.add("tw-voice-active");
+    }
+    try {
+      this.opts.onActiveChange?.(true);
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      this.setStatus("Connecting…");
+
+      // Send the persistent visitor id so the backend can load this customer's
+      // profile + recent conversation (voice AND chat) into Ema's voice context.
+      const resp = await fetch(`${this.backendUrl}/voice-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: this.visitorId }),
+      });
+      const tokenData = (await resp.json().catch(() => ({}))) as VoiceToken & { error?: string };
+      if (!resp.ok || !tokenData.token) {
+        const e = tokenData.error || "";
+        this.setStatus(
+          e === "voice_person_limit"
+            ? "You’ve reached today’s voice limit — you can keep chatting by text."
+            : e === "voice_daily_limit"
+              ? "Voice is at capacity right now — please chat by text."
+              : "Voice is unavailable right now — please chat by text.",
+        );
+        this.stop();
+        return;
+      }
+      const token = tokenData.token;
+      const model = tokenData.model || "grok-voice-latest";
+      const instructions = tokenData.instructions || "";
+      const chatTools = tokenData.tools || [];
+
+      // Mic access.
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        this.setStatus("Voice error: mic permission");
+        this.stop();
+        return;
+      }
+
+      if (this.stopped) {
+        this.stop();
+        return;
+      }
+
+      // Audio context (mic tap counts as user gesture).
+      const AudioCtxCtor: typeof AudioContext =
+        (window as unknown as { AudioContext: typeof AudioContext }).AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      this.audioCtx = new AudioCtxCtor({ sampleRate: 24000 });
+      await this.audioCtx.resume();
+      this.nextTime = this.audioCtx.currentTime;
+
+      // Recording destination (mic + assistant playback are both routed here).
+      try {
+        this.dest = this.audioCtx.createMediaStreamDestination();
+      } catch {
+        this.dest = null;
+      }
+
+      // Open WebSocket with token in subprotocol.
+      const ws = new WebSocket(
+        `wss://api.x.ai/v1/realtime?model=${encodeURIComponent(model)}`,
+        [`xai-client-secret.${token}`],
+      );
+      ws.binaryType = "arraybuffer";
+      this.ws = ws;
+
+      const convertedTools: RealtimeTool[] = chatTools
+        .filter((t: ChatTool): boolean => !!t.function)
+        .map((t: ChatTool): RealtimeTool => ({
+          type: "function",
+          name: t.function!.name,
+          description: t.function!.description,
+          parameters: t.function!.parameters,
+        }));
+
+      ws.onopen = (): void => {
+        try {
+          if (this.stopped || ws.readyState !== WebSocket.OPEN) {
+            return;
+          }
+          ws.send(
+            JSON.stringify({
+              type: "session.update",
+              session: {
+                voice: tokenData.voice || "eve",
+                instructions,
+                ...(tokenData.replace ? { replace: tokenData.replace } : {}),
+                turn_detection: { type: "server_vad" },
+                audio: {
+                  input: {
+                    format: { type: "audio/pcm", rate: 24000 },
+                    transcription: { model: "grok-transcribe" },
+                  },
+                  output: { format: { type: "audio/pcm", rate: 24000 } },
+                },
+                tools: convertedTools,
+                tool_choice: "auto",
+              },
+            }),
+          );
+
+          const audioCtx = this.audioCtx!;
+          const src = audioCtx.createMediaStreamSource(this.stream!);
+          const proc = audioCtx.createScriptProcessor(4096, 1, 1);
+          src.connect(proc);
+          const sink = audioCtx.createGain();
+          sink.gain.value = 0;
+          proc.connect(sink);
+          sink.connect(audioCtx.destination);
+
+          // Mic also feeds the recorder mix.
+          if (this.dest) {
+            try {
+              src.connect(this.dest);
+            } catch {
+              /* ignore */
+            }
+          }
+
+          this.src = src;
+          this.proc = proc;
+          this.sink = sink;
+
+          this.startRecorder();
+
+          proc.onaudioprocess = (e: AudioProcessingEvent): void => {
+            if (ws.readyState !== WebSocket.OPEN) {
+              return;
+            }
+            const f32 = e.inputBuffer.getChannelData(0);
+            const pcm = new Int16Array(f32.length);
+            for (let i = 0; i < f32.length; i++) {
+              const s = Math.max(-1, Math.min(1, f32[i]));
+              pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+            }
+            const b64 = base64FromBytes(new Uint8Array(pcm.buffer));
+            ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64 }));
+          };
+
+          this.setStatus("Listening…");
+        } catch (err) {
+          this.handleError(err);
+        }
+      };
+
+      ws.onmessage = (ev: MessageEvent): void => {
+        void this.onMessage(ev);
+      };
+
+      ws.onerror = (): void => {
+        if (!this.stopped) {
+          this.setStatus("Voice error: connection");
+        }
+      };
+
+      ws.onclose = (): void => {
+        if (!this.stopped) {
+          this.setStatus("Voice ended");
+          this.stop();
+        }
+      };
+    } catch (err) {
+      this.handleError(err);
+    }
+  }
+
+  private startRecorder(): void {
+    try {
+      const dest = this.dest;
+      if (!dest || typeof MediaRecorder === "undefined") {
+        return;
+      }
+      let recorder: MediaRecorder;
+      try {
+        if (
+          typeof MediaRecorder.isTypeSupported === "function" &&
+          MediaRecorder.isTypeSupported("audio/webm")
+        ) {
+          recorder = new MediaRecorder(dest.stream, { mimeType: "audio/webm" });
+        } else {
+          recorder = new MediaRecorder(dest.stream);
+        }
+      } catch {
+        recorder = new MediaRecorder(dest.stream);
+      }
+      recorder.ondataavailable = (e: BlobEvent): void => {
+        if (e.data && e.data.size > 0) {
+          this.chunks.push(e.data);
+        }
+      };
+      recorder.start(1000);
+      this.recorder = recorder;
+    } catch {
+      this.recorder = null;
+    }
+  }
+
+  private async onMessage(ev: MessageEvent): Promise<void> {
+    try {
+      if (typeof ev.data !== "string") {
+        return; // ignore binary frames
+      }
+      const event = JSON.parse(ev.data) as RealtimeEvent;
+      switch (event.type) {
+        case "response.output_audio.delta":
+        case "response.audio.delta": {
+          if (event.delta) {
+            this.schedulePlayback(event.delta);
+            this.setStatus("Ema is speaking…");
+          }
+          break;
+        }
+
+        // ---- User speech transcription ----
+        case "conversation.item.input_audio_transcription.updated":
+        case "conversation.item.input_audio_transcription.delta": {
+          const t = event.transcript || event.text || event.delta || "";
+          if (event.type.endsWith(".delta") && event.delta) {
+            this.userTurnText += event.delta;
+          } else if (t) {
+            this.userTurnText = t;
+          }
+          this.userTurnEmitted = false;
+          break;
+        }
+        case "conversation.item.input_audio_transcription.completed": {
+          const t = event.transcript || event.text || "";
+          if (t) {
+            this.userTurnText = t;
+          }
+          this.flushUserTurn();
+          break;
+        }
+
+        // ---- Assistant speech transcription ----
+        case "response.output_audio_transcript.delta":
+        case "response.audio_transcript.delta": {
+          if (event.delta) {
+            this.aiTurnText += event.delta;
+            this.aiTurnEmitted = false;
+          }
+          break;
+        }
+        case "response.output_audio_transcript.done":
+        case "response.audio_transcript.done": {
+          const t = event.transcript || event.text || "";
+          if (t) {
+            this.aiTurnText = t;
+          }
+          this.flushAiTurn();
+          break;
+        }
+        case "response.done": {
+          this.flushAiTurn();
+          this.resetInactivity();
+          break;
+        }
+
+        case "input_audio_buffer.speech_started": {
+          this.setStatus("Listening…");
+          this.resetInactivity();
+          break;
+        }
+        case "input_audio_buffer.speech_stopped": {
+          break;
+        }
+        case "response.function_call_arguments.done": {
+          // Generic bridge: run ANY of Ema's tools via the backend so voice is as
+          // capable as text (products, policies, orders, support, memory, offers).
+          const toolName = event.name || "";
+          if (toolName) {
+            // Real product/offer engagement marks this as a genuine buying
+            // conversation, exempting it from the 15-min non-buying shut-off.
+            if (VoiceSession.BUYING_TOOLS.has(toolName)) this.buyingSignal = true;
+            this.setStatus("Thinking…");
+            let output = JSON.stringify({ error: "tool_error" });
+            try {
+              const res = await fetch(`${this.backendUrl}/voice/tool`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  name: toolName,
+                  arguments: event.arguments || "{}",
+                  sessionId: this.visitorId,
+                }),
+              });
+              const j = (await res.json()) as { output?: string };
+              if (typeof j.output === "string") output = j.output;
+            } catch {
+              /* keep tool_error output */
+            }
+            const ws = this.ws;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  type: "conversation.item.create",
+                  item: {
+                    type: "function_call_output",
+                    call_id: event.call_id,
+                    output,
+                  },
+                }),
+              );
+              ws.send(JSON.stringify({ type: "response.create" }));
+            }
+          }
+          break;
+        }
+        case "error": {
+          const msg = (event.error && event.error.message) || "unknown";
+          this.setStatus("Voice error: " + msg);
+          // eslint-disable-next-line no-console
+          console.error("Voice error event:", event.error);
+          break;
+        }
+        default:
+          break;
+      }
+    } catch (err) {
+      this.handleError(err);
+    }
+  }
+
+  private schedulePlayback(b64: string): void {
+    const audioCtx = this.audioCtx;
+    if (!audioCtx) {
+      return;
+    }
+    const bytes = bytesFromBase64(b64);
+    const int16 = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
+    const len = int16.length;
+    if (len === 0) {
+      return;
+    }
+    const buf = audioCtx.createBuffer(1, len, 24000);
+    const channel = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      channel[i] = int16[i] / 32768;
+    }
+    const source = audioCtx.createBufferSource();
+    source.buffer = buf;
+    try {
+      source.playbackRate.value = VOICE_PLAYBACK_RATE;
+    } catch {
+      /* ignore */
+    }
+    source.connect(audioCtx.destination);
+    if (this.dest) {
+      try {
+        source.connect(this.dest);
+      } catch {
+        /* ignore */
+      }
+    }
+    const startAt = Math.max(audioCtx.currentTime, this.nextTime);
+    source.start(startAt);
+    // Effective duration shrinks with playbackRate — advance the schedule cursor
+    // by the sped-up duration so chunks stay gapless and don't overlap.
+    this.nextTime = startAt + buf.duration / VOICE_PLAYBACK_RATE;
+  }
+
+  private handleError(err: unknown): void {
+    const msg = err instanceof Error ? err.message : String(err);
+    this.setStatus("Voice error: " + msg);
+    this.stop();
+  }
+
+  private finalizeRecording(): void {
+    const recorder = this.recorder;
+    this.recorder = null;
+    const sessionId = this.sessionId;
+    const chunks = this.chunks;
+    this.chunks = [];
+
+    const upload = (blob: Blob): void => {
+      try {
+        if (!blob || blob.size === 0) {
+          return;
+        }
+        void fetch(`${this.backendUrl}/session/audio?sessionId=${encodeURIComponent(sessionId)}`, {
+          method: "POST",
+          headers: { "Content-Type": "audio/webm" },
+          body: blob,
+        }).catch((): void => {
+          /* ignore */
+        });
+      } catch {
+        /* ignore */
+      }
+    };
+
+    if (!recorder) {
+      if (chunks.length > 0) {
+        upload(new Blob(chunks, { type: "audio/webm" }));
+      }
+      return;
+    }
+
+    try {
+      recorder.ondataavailable = (e: BlobEvent): void => {
+        if (e.data && e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+      recorder.onstop = (): void => {
+        upload(new Blob(chunks, { type: "audio/webm" }));
+      };
+      if (recorder.state !== "inactive") {
+        recorder.stop();
+      } else {
+        upload(new Blob(chunks, { type: "audio/webm" }));
+      }
+    } catch {
+      try {
+        upload(new Blob(chunks, { type: "audio/webm" }));
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  private uploadLog(): void {
+    try {
+      if (this.logUploaded) return;
+      if (!this.transcript || this.transcript.length === 0) return;
+      this.logUploaded = true;
+      const payload = {
+        sessionId: this.sessionId,
+        // Persist under the persistent visitor id so voice turns become recallable
+        // by future voice OR text sessions (backend writes them to Postgres).
+        visitorId: this.visitorId,
+        transcript: this.transcript,
+        meta: { channel: "voice", durationMs: this.sessionStartMs ? Date.now() - this.sessionStartMs : 0 },
+      };
+      void fetch(`${this.backendUrl}/session/log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      }).catch((): void => {
+        /* ignore */
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Fire-and-forget transcript persistence for the page-unload path, where a
+  // normal fetch would be cancelled. Uses sendBeacon so the browser delivers it
+  // after navigation starts. Guarded so it never double-saves with uploadLog().
+  private beaconLog(): void {
+    try {
+      if (this.logUploaded) return;
+      if (!this.transcript || this.transcript.length === 0) return;
+      this.logUploaded = true;
+      const payload = JSON.stringify({
+        sessionId: this.sessionId,
+        visitorId: this.visitorId,
+        transcript: this.transcript,
+        meta: { channel: "voice", durationMs: this.sessionStartMs ? Date.now() - this.sessionStartMs : 0 },
+      });
+      const url = `${this.backendUrl}/session/log`;
+      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        navigator.sendBeacon(url, new Blob([payload], { type: "application/json" }));
+      } else {
+        void fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true,
+        }).catch((): void => {
+          /* ignore */
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  stop(): void {
+    const wasActive = this.active || !!this.recorder || this.transcript.length > 0;
+    this.stopped = true;
+    this.active = false;
+    this.clearInactivity();
+    this.clearNonBuying();
+
+    // Flush any pending partial transcripts before finalizing.
+    try {
+      this.flushUserTurn();
+      this.flushAiTurn();
+    } catch {
+      /* ignore */
+    }
+
+    // Best-effort finalization (never blocks teardown).
+    try {
+      this.finalizeRecording();
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (wasActive) {
+        this.uploadLog();
+      }
+    } catch {
+      /* ignore */
+    }
+
+    if (this.proc) {
+      this.proc.onaudioprocess = null;
+      try {
+        this.proc.disconnect();
+      } catch {
+        /* ignore */
+      }
+      this.proc = null;
+    }
+    if (this.src) {
+      try {
+        this.src.disconnect();
+      } catch {
+        /* ignore */
+      }
+      this.src = null;
+    }
+    if (this.sink) {
+      try {
+        this.sink.disconnect();
+      } catch {
+        /* ignore */
+      }
+      this.sink = null;
+    }
+    if (this.dest) {
+      try {
+        this.dest.disconnect();
+      } catch {
+        /* ignore */
+      }
+      this.dest = null;
+    }
+    if (this.stream) {
+      for (const track of this.stream.getTracks()) {
+        try {
+          track.stop();
+        } catch {
+          /* ignore */
+        }
+      }
+      this.stream = null;
+    }
+    if (this.ws) {
+      try {
+        if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+          this.ws.close();
+        }
+      } catch {
+        /* ignore */
+      }
+      this.ws = null;
+    }
+    if (this.audioCtx) {
+      const ctx = this.audioCtx;
+      this.audioCtx = null;
+      // Delay close slightly so the recorder can flush its final chunk.
+      setTimeout((): void => {
+        try {
+          void ctx.close();
+        } catch {
+          /* ignore */
+        }
+      }, 250);
+    }
+
+    this.setStatus("");
+    if (this.btn) {
+      this.btn.classList.remove("tw-voice-active");
+    }
+    try {
+      this.opts.onActiveChange?.(false);
+    } catch {
+      /* ignore */
+    }
+  }
+}

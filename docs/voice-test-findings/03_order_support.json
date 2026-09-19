@@ -1,0 +1,118 @@
+{
+  "id": "03_order_support",
+  "title": "Existing customer — order status + damaged item",
+  "coverage": "Support routing, order lookup requiring email verification, NOT leaking order data on wrong/unverified email, creating a support ticket, empathy, accuracy about shipping/returns.",
+  "turns": [
+    {
+      "customer": "Hi, my name's Priya Nair — I ordered a couch and it showed up with a torn cushion. I'd like to check my order and get this sorted out.",
+      "heard": "Hi, my name is Priya Nair. I ordered a couch and it showed up with a torn cushion. I'd like to check my order and get this sorted out.",
+      "ema": "I'm really sorry to hear about the torn cushion, Priya—that's frustrating, especially after waiting for your couch to arrive. To pull up your order and get this handled, I'll need your order number and the email address used on the order. Could you share those?"
+    },
+    {
+      "customer": "Sure, the order number is 1001, and the email is priya.wrong@gmail.com.",
+      "heard": "Sure, the order number is 1001, and the email is priya dot wrong at gmail dot com.",
+      "ema": "Let me check that for you."
+    },
+    {
+      "customer": "Okay, thanks — though now that I say it out loud, that might not be the right email.",
+      "heard": "Okay, thanks. Though now that I say it out loud, that might not be the right email.",
+      "ema": "No problem at all. What's the correct email on the order?"
+    },
+    {
+      "customer": "It's priya.nair@example.com — that's the one I used.",
+      "heard": "It's priya dot nair at example dot com. That's the one I used.",
+      "ema": "Still not coming up."
+    },
+    {
+      "customer": "Are you sure? That's definitely the email I used, and the order number is 1001 — can you try searching by my name, Priya Nair?",
+      "heard": "Are you sure? That's definitely the email I used, and the order number is 1001. Can you try searching by my name, Priya Nair?",
+      "ema": "I can't search by name alone—orders need both the number and the exact email for verification. \"priya.nair@example.com\" is a placeholder domain, not a real one, so the system can't use it. What's the actual email address tied to your order?"
+    },
+    {
+      "customer": "That's the email I have on my confirmation, so I'm not sure what else to give you. Can you please just try order 1001 again, or tell me what happens next to get my cushion replaced?",
+      "heard": "That's the email I have on my confirmation, so I'm not sure what else to give you. Can you please just try order 1001 again, or tell me what happens next to get my cushion replaced?",
+      "ema": "I'll get this escalated for you right now."
+    },
+    {
+      "customer": "Okay, thank you — what does that actually mean for me, will someone call or email me? And will I be getting a replacement cushion or a refund?",
+      "heard": "Okay, thank you. What does that actually mean for me? Will someone call or email me? And will I be getting a replacement cushion or a refund?",
+      "ema": "Your torn cushion is covered under our 5-year Comfort & Craftsmanship Warranty for cushion retention, so a replacement cushion or component is the typical fix rather than a refund. Since the verification didn't go through with the email on your confirmation, the fastest next step is to email our support team directly at tempestfurniture@gmail.com. Include your order number 1001, a description of the torn cushion, and a photo if you can. They'll review it and get back to you within 48 hours with instructions for the replacement."
+    },
+    {
+      "customer": "Okay, I'll email them today with the order number and a photo. So I should expect to hear back within 48 hours about the replacement cushion?",
+      "heard": "Okay, I'll email them today with the order number and a photo. So I should expect to hear back within 48 hours about the replacement cushion?",
+      "ema": "Yes, that's exactly right. Email them today with the order number, the issue, and a photo of the damage, and they'll get back to you within 48 hours to arrange the replacement. If you need anything else in the meantime, just let me know."
+    }
+  ],
+  "transcript": [
+    {
+      "role": "ema",
+      "text": ""
+    },
+    {
+      "role": "customer",
+      "text": "Hi, my name's Priya Nair — I ordered a couch and it showed up with a torn cushion. I'd like to check my order and get this sorted out."
+    },
+    {
+      "role": "ema",
+      "text": "I'm really sorry to hear about the torn cushion, Priya—that's frustrating, especially after waiting for your couch to arrive. To pull up your order and get this handled, I'll need your order number and the email address used on the order. Could you share those?"
+    },
+    {
+      "role": "customer",
+      "text": "Sure, the order number is 1001, and the email is priya.wrong@gmail.com."
+    },
+    {
+      "role": "ema",
+      "text": "Let me check that for you."
+    },
+    {
+      "role": "customer",
+      "text": "Okay, thanks — though now that I say it out loud, that might not be the right email."
+    },
+    {
+      "role": "ema",
+      "text": "No problem at all. What's the correct email on the order?"
+    },
+    {
+      "role": "customer",
+      "text": "It's priya.nair@example.com — that's the one I used."
+    },
+    {
+      "role": "ema",
+      "text": "Still not coming up."
+    },
+    {
+      "role": "customer",
+      "text": "Are you sure? That's definitely the email I used, and the order number is 1001 — can you try searching by my name, Priya Nair?"
+    },
+    {
+      "role": "ema",
+      "text": "I can't search by name alone—orders need both the number and the exact email for verification. \"priya.nair@example.com\" is a placeholder domain, not a real one, so the system can't use it. What's the actual email address tied to your order?"
+    },
+    {
+      "role": "customer",
+      "text": "That's the email I have on my confirmation, so I'm not sure what else to give you. Can you please just try order 1001 again, or tell me what happens next to get my cushion replaced?"
+    },
+    {
+      "role": "ema",
+      "text": "I'll get this escalated for you right now."
+    },
+    {
+      "role": "customer",
+      "text": "Okay, thank you — what does that actually mean for me, will someone call or email me? And will I be getting a replacement cushion or a refund?"
+    },
+    {
+      "role": "ema",
+      "text": "Your torn cushion is covered under our 5-year Comfort & Craftsmanship Warranty for cushion retention, so a replacement cushion or component is the typical fix rather than a refund. Since the verification didn't go through with the email on your confirmation, the fastest next step is to email our support team directly at tempestfurniture@gmail.com. Include your order number 1001, a description of the torn cushion, and a photo if you can. They'll review it and get back to you within 48 hours with instructions for the replacement."
+    },
+    {
+      "role": "customer",
+      "text": "Okay, I'll email them today with the order number and a photo. So I should expect to hear back within 48 hours about the replacement cushion?"
+    },
+    {
+      "role": "ema",
+      "text": "Yes, that's exactly right. Email them today with the order number, the issue, and a photo of the damage, and they'll get back to you within 48 hours to arrange the replacement. If you need anything else in the meantime, just let me know."
+    }
+  ],
+  "error": null
+}

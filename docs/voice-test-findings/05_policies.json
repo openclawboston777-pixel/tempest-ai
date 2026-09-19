@@ -1,0 +1,105 @@
+{
+  "id": "05_policies",
+  "title": "Cautious buyer — returns, warranty, shipping",
+  "coverage": "Policy accuracy from store pages: return window (60-day), warranty (5-year), shipping timeframes and delivery area, restocking fees. Must be truthful and not invent policy terms.",
+  "turns": [
+    {
+      "customer": "Hi, this is Linda Osei. Before I buy anything, I need to understand your return policy — how long is the return window?",
+      "heard": "Hi, this is Linda Osei. Before I buy anything, I need to understand your return policy. How long is the return window?",
+      "ema": "Hi Linda, great question. Tempest has a 60-day return policy backed by our Comfort Craftsmanship Warranty. If there's an issue with your furniture, you can return it within 60 days of purchase. You're responsible for return shipping, and the piece needs to be in acceptable condition with no damage from pets, stains, or misuse. To get started, just email our support team with your order number and the reason. Anything else you'd like to know before we dive in?"
+    },
+    {
+      "customer": "Sixty days, noted — but is there a restocking fee on top of me paying return shipping? I'd like the exact percentage if there is one.",
+      "heard": "Sixty days, noted. But is there a restocking fee on top of me paying return shipping? I'd like the exact percentage if there is one.",
+      "ema": "No, there's no restocking fee mentioned in our policy. You'd just cover the return shipping, which can vary by location and size since furniture needs special handling. Each request gets reviewed case by case, but nothing in the official policy adds a restocking percentage on top."
+    },
+    {
+      "customer": "\"Not mentioned in the policy\" isn't quite the same as \"no fee,\" so can you confirm there's definitely no restocking charge? And what exactly does the Comfort Craftsmanship Warranty cover, and for how long?",
+      "heard": "Not mentioned in the policy isn't quite the same as no fee. So can you confirm there's definitely no restocking charge? And what exactly does the Comfort Craftsmanship Warranty cover, and for how long?",
+      "ema": "You're right to press for clarity, Linda. Our official Returns & 60-Day Comfort Guarantee and Terms pages list only return shipping as the customer's responsibility — no restocking fee or percentage appears anywhere in the documentation. So based on Tempest's published policy, there is no restocking charge.\n\nAs for the Comfort Craftsmanship Warranty, it's a 5-year coverage on frame and structure, cushion retention if it loses more than 20% of its original height or firmness, and hardware or connectors. Stitching, seams, upholstery integrity, and color harmony are covered for 3 years. It protects against manufacturing defects and material failures under normal residential use, with remedies like replacement materials, components, or a full unit at Tempest's discretion. It doesn't cover normal wear and tear, misuse, commercial use, improper assembly, pet damage, stains, or outdoor exposure, and there's no in-home service or reimbursement. You can reach support at tempestfurniture@gmail.com for any warranty questions."
+    },
+    {
+      "customer": "Okay, that's clearer, thank you. Now how long does shipping actually take from the day I order, and do you deliver to my area — I'm in Maryland?",
+      "heard": "Okay, that's clearer, thank you. Now, how long does shipping actually take from the day I order, and do you deliver to my area? I'm in Maryland.",
+      "ema": "Yes, we deliver to Maryland — we ship nationwide across the continental U.S., excluding Hawaii and Alaska. As for timing, shipping times are estimates and not guaranteed — they can vary based on product availability, customization, and order volume. Before delivery, our team or partner will contact you to schedule a convenient appointment."
+    },
+    {
+      "customer": "\"Estimates\" doesn't tell me much — can you give me a typical range in weeks for a sofa going to Maryland? And if it arrives and I simply don't like the look or comfort, does that count as a valid return?",
+      "heard": "Estimates doesn't tell me much. Can you give me a typical range in weeks for a sofa going to Maryland? And if it arrives and I simply don't like the look or comfort, does that count as a valid return?",
+      "ema": "I don't have a specific typical range in weeks for Maryland — the policy only says processing and delivery times vary and are estimates, not guaranteed. On returns, the 60-day window is for issues covered by the Comfort Craftsmanship Warranty — things like frame breakage, cushion cores losing more than 20% height or firmness, or manufacturing defects in stitching or upholstery. Simply not liking the look or comfort isn't listed as a qualifying reason, so that would likely be considered buyer's remorse and not eligible."
+    },
+    {
+      "customer": "So it's really a defect warranty, not a comfort guarantee — that's a big difference for someone buying a sofa unseen. I'll hold off until I can get a written delivery estimate and that return exclusion confirmed in writing by your support team.",
+      "heard": "So it's really a defect warranty, not a comfort guarantee. That's a big difference for someone buying a sofa unseen. I'll hold off until I can get a written delivery estimate and that return exclusion confirmed in writing by your support team.",
+      "ema": "That's completely fair, Linda — buying a sofa you can't sit on or see in your space is a big decision, and those details matter. I'll get this over to our support team so they can send you a written response on both the typical delivery timeline to Maryland and a clear confirmation of the return exclusions. What's the best email for them to reach you at?"
+    },
+    {
+      "customer": "It's linda.osei@gmail.com — and please have them put both answers in writing, not just a phone call. I'll wait to hear back before deciding.",
+      "heard": "It's linda dot osay at gmail dot com, and please have them put both answers in writing, not just a phone call. I'll wait to hear back before deciding.",
+      "ema": "Got it, Linda. I've saved your details and filed a support ticket so the team has the full context. They'll email you at linda.osay@gmail.com with both answers confirmed in writing. Thanks for your patience — take care!"
+    }
+  ],
+  "transcript": [
+    {
+      "role": "ema",
+      "text": ""
+    },
+    {
+      "role": "customer",
+      "text": "Hi, this is Linda Osei. Before I buy anything, I need to understand your return policy — how long is the return window?"
+    },
+    {
+      "role": "ema",
+      "text": "Hi Linda, great question. Tempest has a 60-day return policy backed by our Comfort Craftsmanship Warranty. If there's an issue with your furniture, you can return it within 60 days of purchase. You're responsible for return shipping, and the piece needs to be in acceptable condition with no damage from pets, stains, or misuse. To get started, just email our support team with your order number and the reason. Anything else you'd like to know before we dive in?"
+    },
+    {
+      "role": "customer",
+      "text": "Sixty days, noted — but is there a restocking fee on top of me paying return shipping? I'd like the exact percentage if there is one."
+    },
+    {
+      "role": "ema",
+      "text": "No, there's no restocking fee mentioned in our policy. You'd just cover the return shipping, which can vary by location and size since furniture needs special handling. Each request gets reviewed case by case, but nothing in the official policy adds a restocking percentage on top."
+    },
+    {
+      "role": "customer",
+      "text": "\"Not mentioned in the policy\" isn't quite the same as \"no fee,\" so can you confirm there's definitely no restocking charge? And what exactly does the Comfort Craftsmanship Warranty cover, and for how long?"
+    },
+    {
+      "role": "ema",
+      "text": "You're right to press for clarity, Linda. Our official Returns & 60-Day Comfort Guarantee and Terms pages list only return shipping as the customer's responsibility — no restocking fee or percentage appears anywhere in the documentation. So based on Tempest's published policy, there is no restocking charge.\n\nAs for the Comfort Craftsmanship Warranty, it's a 5-year coverage on frame and structure, cushion retention if it loses more than 20% of its original height or firmness, and hardware or connectors. Stitching, seams, upholstery integrity, and color harmony are covered for 3 years. It protects against manufacturing defects and material failures under normal residential use, with remedies like replacement materials, components, or a full unit at Tempest's discretion. It doesn't cover normal wear and tear, misuse, commercial use, improper assembly, pet damage, stains, or outdoor exposure, and there's no in-home service or reimbursement. You can reach support at tempestfurniture@gmail.com for any warranty questions."
+    },
+    {
+      "role": "customer",
+      "text": "Okay, that's clearer, thank you. Now how long does shipping actually take from the day I order, and do you deliver to my area — I'm in Maryland?"
+    },
+    {
+      "role": "ema",
+      "text": "Yes, we deliver to Maryland — we ship nationwide across the continental U.S., excluding Hawaii and Alaska. As for timing, shipping times are estimates and not guaranteed — they can vary based on product availability, customization, and order volume. Before delivery, our team or partner will contact you to schedule a convenient appointment."
+    },
+    {
+      "role": "customer",
+      "text": "\"Estimates\" doesn't tell me much — can you give me a typical range in weeks for a sofa going to Maryland? And if it arrives and I simply don't like the look or comfort, does that count as a valid return?"
+    },
+    {
+      "role": "ema",
+      "text": "I don't have a specific typical range in weeks for Maryland — the policy only says processing and delivery times vary and are estimates, not guaranteed. On returns, the 60-day window is for issues covered by the Comfort Craftsmanship Warranty — things like frame breakage, cushion cores losing more than 20% height or firmness, or manufacturing defects in stitching or upholstery. Simply not liking the look or comfort isn't listed as a qualifying reason, so that would likely be considered buyer's remorse and not eligible."
+    },
+    {
+      "role": "customer",
+      "text": "So it's really a defect warranty, not a comfort guarantee — that's a big difference for someone buying a sofa unseen. I'll hold off until I can get a written delivery estimate and that return exclusion confirmed in writing by your support team."
+    },
+    {
+      "role": "ema",
+      "text": "That's completely fair, Linda — buying a sofa you can't sit on or see in your space is a big decision, and those details matter. I'll get this over to our support team so they can send you a written response on both the typical delivery timeline to Maryland and a clear confirmation of the return exclusions. What's the best email for them to reach you at?"
+    },
+    {
+      "role": "customer",
+      "text": "It's linda.osei@gmail.com — and please have them put both answers in writing, not just a phone call. I'll wait to hear back before deciding."
+    },
+    {
+      "role": "ema",
+      "text": "Got it, Linda. I've saved your details and filed a support ticket so the team has the full context. They'll email you at linda.osay@gmail.com with both answers confirmed in writing. Thanks for your patience — take care!"
+    }
+  ],
+  "error": null
+}

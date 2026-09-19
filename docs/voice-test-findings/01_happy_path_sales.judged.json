@@ -1,0 +1,87 @@
+{
+  "id": "01_happy_path_sales",
+  "title": "Happy-path shopper — full sales flow",
+  "mistakes": [
+    {
+      "severity": "critical",
+      "category": "accuracy-hallucination",
+      "customer_said": "Oh, really? Hmm. Do you have anything else that might work — like a sofa with an ottoman or a chaise sofa?",
+      "ema_said": "The most compact L-shapes that should fit your 11-by-13 room are The Artemitize at about 9¼ by 6½ feet, The Hazeli in black at roughly 8⅔ by 6¼ feet with a reversible chaise and ottoman, and The Rucleezio in dark grey leather at about 9½ by 5½ feet with a reclining back and USB port.",
+      "problem": "None of these products exist in the catalog (only Labotina, Flexor, Gravus, Oraclessi, Oraclave, Eameson, Nordvik, Memphis, Monterey, Peneal, Ghrayas, Acadia Classic). Dimensions and features are also invented.",
+      "why_it_matters": "Customer is being steered toward non-existent products with fake specs; total loss of trust and no possible sale.",
+      "suggested_fix": "Call get_products and present only real catalog items with real descriptions."
+    },
+    {
+      "severity": "critical",
+      "category": "accuracy-hallucination",
+      "customer_said": "what's the price on the Rucleezio?",
+      "ema_said": "The three-seat Rucleezio is $8,625. There's also a four-piece version at $10,830 if you need more seating.",
+      "problem": "Fabricated prices for a fabricated product; also wildly outside the real catalog price range ($847–$1,849).",
+      "why_it_matters": "Misquoted pricing is a hard commercial failure and could drive the customer away or create a dispute.",
+      "suggested_fix": "Quote only prices returned by get_products."
+    },
+    {
+      "severity": "high",
+      "category": "accuracy-hallucination",
+      "customer_said": "I've got two dogs, so how does the fabric hold up?",
+      "ema_said": "The Hazeli's black polyfiber has removable seat cushions and covers, which makes spot-cleaning and maintenance easier. The Rucleezio's genuine Brazilian leather is naturally more resistant to hair and easier to wipe",
+      "problem": "Invented materials ('polyfiber', 'genuine Brazilian leather') and durability claims for products that don't exist.",
+      "why_it_matters": "Material claims are purchase-critical facts; fabricating them is a policy violation and potential misrepresentation.",
+      "suggested_fix": "Only state materials found in the verified product description."
+    },
+    {
+      "severity": "high",
+      "category": "conversation-quality",
+      "customer_said": "Something comfy for movie nights with my partner — an L-shape, maybe with a chaise to stretch out on. Our living room is smallish, about 11 by 13 feet.",
+      "ema_said": "I'm not finding any sectionals in our current catalog.",
+      "problem": "Directly contradicted one turn later by offering three 'L-shapes' with chaises. Also a blunt dead-end answer with no alternative offered.",
+      "why_it_matters": "Self-contradiction destroys credibility and confuses the customer about what's actually available.",
+      "suggested_fix": "Verify catalog once and give a consistent answer with real alternatives."
+    },
+    {
+      "severity": "medium",
+      "category": "conversation-quality",
+      "customer_said": "Oh, the Hazeli sounds interesting with that reversible chaise — but I've got two dogs, so how does the fabric hold up?",
+      "ema_said": "Let me pull the details on both.",
+      "problem": "Explicitly banned filler — she must never announce checking/pulling up; she should silently look it up and answer once.",
+      "why_it_matters": "Sounds robotic and wastes a voice turn.",
+      "suggested_fix": "Answer directly with the information already in hand."
+    },
+    {
+      "severity": "medium",
+      "category": "conversation-quality",
+      "customer_said": "Definitely shopping — we just moved in and we're sitting on camping chairs right now, so pretty soon! I'd love to get something in the next few weeks.",
+      "ema_said": "Got it—camping chairs are no way to live.",
+      "problem": "'Got it' is explicitly banned as an opener.",
+      "why_it_matters": "Reads as robotic/overused phrasing the spec forbids.",
+      "suggested_fix": "React to content instead, e.g. 'Camping chairs — okay, we need to fix that fast.'"
+    },
+    {
+      "severity": "high",
+      "category": "script-adherence",
+      "customer_said": "Something comfy for movie nights with my partner — an L-shape, maybe with a chaise to stretch out on. Our living room is smallish, about 11 by 13 feet.",
+      "ema_said": "I'm not finding any sectionals in our current catalog.",
+      "problem": "Ema skipped the rest of Phase 2 (keep browsing / save favorites framing), the Instant Quick Qualification (USA-only shipping), Pain/Problem Awareness, Solution Awareness, Qualifying & Urgency, Ideal Offer Awareness, and contact collection — jumping straight into product recommendations.",
+      "why_it_matters": "The entire discovery process that makes the narrowing valuable is bypassed; budget, dealbreakers, pets (raised only by the customer), and seating were never qualified.",
+      "suggested_fix": "Complete phases in order before recommending specific products."
+    },
+    {
+      "severity": "medium",
+      "category": "script-adherence",
+      "customer_said": "Great, thanks — and could I see what one of them would actually look like in my room? I could send a photo of the space.",
+      "ema_said": "The Hazeli's black polyfiber has removable seat cushions and covers, which makes spot-cleaning and maintenance easier. The Rucleezio's genuine Brazilian leather is naturally more resistant to hair and easier to wipe",
+      "problem": "Ignored the customer's direct request to send a room photo in that turn; never guided her to the 'See it in your room' photo button.",
+      "why_it_matters": "Direct questions must be answered first; ignoring it makes the customer repeat herself and delays the visualization phase.",
+      "suggested_fix": "Acknowledge the photo request immediately and point to the photo upload button."
+    },
+    {
+      "severity": "low",
+      "category": "tool-failure",
+      "customer_said": "Oh, the Hazeli sounds interesting with that reversible chaise",
+      "ema_said": "The Hazeli's black polyfiber has removable seat cushions and covers",
+      "problem": "No favorites were recorded via record_favorite despite the customer expressing clear interest in specific couches, and no remember_customer capture of her stated criteria (room size, dogs, partner, timeline).",
+      "why_it_matters": "Tempest loses the ability to follow up and Ema loses the narrowing framework later.",
+      "suggested_fix": "Record favorites and persist criteria as they're stated."
+    }
+  ]
+}

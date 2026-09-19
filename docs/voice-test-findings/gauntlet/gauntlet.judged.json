@@ -1,0 +1,103 @@
+{
+  "mistakes": [
+    {
+      "severity": "high",
+      "category": "conversation quality / ignoring the customer",
+      "customer_said": "That's a nice pitch, but I asked for actual recommendations — name me two sectionals that handle kids and a dog.",
+      "ema_said": "I'm your AI assistant here at Tempest, built specifically to help people figure out exactly what kind of couch they want and need...",
+      "problem": "Jordan asked for recommendations twice and Ema delivered the scripted Phase 1/2 pitch without answering.",
+      "why_it_matters": "Spec requires answering a direct question first, then resuming the process; ignoring it feels robotic and loses trust.",
+      "suggested_fix": "Give two real in-stock options in a sentence, then steer back to discovery."
+    },
+    {
+      "severity": "high",
+      "category": "repetition / ignoring question",
+      "customer_said": "The LaCreuz sounds promising — give me its exact dimensions, the price, and confirm it's actually in stock.",
+      "ema_said": "Fair enough—let me give you the straight answer. The two that best match what you're describing are The Trufton... and The LaCreuz...",
+      "problem": "She repeated the same two-product pitch instead of giving dimensions, price and stock as asked.",
+      "why_it_matters": "Directly violates the responsiveness rule and wastes the customer's time.",
+      "suggested_fix": "Answer dimensions/price/stock immediately."
+    },
+    {
+      "severity": "high",
+      "category": "repetition",
+      "customer_said": "Good, that's what I needed. Now what's your return window and the warranty on it?",
+      "ema_said": "The LaCreuz measures approximately 10 feet 7 inches in length, 5 feet 9.3 inches in depth, and 2 feet 8.7 inches in height. It's $6,600 and currently in stock with 67 units available...",
+      "problem": "She re-stated the dimensions/price she had just given and completely skipped the return/warranty question.",
+      "why_it_matters": "Second consecutive ignored question plus verbatim repetition — reads as broken.",
+      "suggested_fix": "Answer policy questions from get_shop_policies right away."
+    },
+    {
+      "severity": "high",
+      "category": "repetition",
+      "customer_said": "Good to know about the pet damage clause. Now, $6,600 is steep — what can you do on price?",
+      "ema_said": "You've got a 60-day return window. The 5-year warranty covers the frame, structure, cushion retention, hardware, and connectors...",
+      "problem": "She repeated the entire warranty/return answer she had just given and ignored the price question.",
+      "why_it_matters": "Third ignored question; the customer had to prompt again ('You're looping again').",
+      "suggested_fix": "Move to the offer process when price is raised."
+    },
+    {
+      "severity": "critical",
+      "category": "discount negotiation",
+      "customer_said": "Alright, $5,400 works — I'll take it.",
+      "ema_said": "I can shave a bit more—$1,500 off brings it to $5,100. Use code EMA-LUO848 at checkout and I've locked it in for 20 minutes.",
+      "problem": "The customer had already accepted $5,400; Ema kept discounting after the yes.",
+      "why_it_matters": "Spec explicitly says take the yes and stop — this needlessly gives away $300 of margin.",
+      "suggested_fix": "Lock the $5,400 deal and point to the live timer/code."
+    },
+    {
+      "severity": "high",
+      "category": "discount negotiation / contradiction",
+      "customer_said": "$500 on a $6,600 couch is barely 7% — can you do better than that?",
+      "ema_said": "Best I can do is $800 off, landing at $5,800.",
+      "problem": "She declared $800 her limit, then gave $1,200 and later $1,500 — revealing a 'how low I can go' framing and contradicting herself.",
+      "why_it_matters": "Reveals internal negotiation posture, destroys credibility of every subsequent offer.",
+      "suggested_fix": "Never say 'best I can do' unless it truly is the last round."
+    },
+    {
+      "severity": "medium",
+      "category": "ignoring the customer",
+      "customer_said": "I'm still on the fence — throw in free delivery or shave a bit more and I'll commit today.",
+      "ema_said": "I can do better than that. $1,200 off brings it to $5,400—use code EMA-XS6FSN at checkout.",
+      "problem": "She never addressed the free-delivery request at all, just discounted.",
+      "why_it_matters": "Customer's actual ask goes unanswered; shipping terms are a material purchase factor.",
+      "suggested_fix": "Address shipping from policy, then present the offer."
+    },
+    {
+      "severity": "medium",
+      "category": "ignoring the customer",
+      "customer_said": "Quick question though: do you sell a matching coffee table, or would you price-match Wayfair?",
+      "ema_said": "I can shave a bit more—$1,500 off brings it to $5,100...",
+      "problem": "She ignored both questions in that turn; only answered after the customer asked a second time.",
+      "why_it_matters": "Pattern of steamrolling questions to push the close.",
+      "suggested_fix": "Answer scope/price-match question immediately."
+    },
+    {
+      "severity": "high",
+      "category": "process / phase order",
+      "customer_said": "Hi, I'm Jordan. I'm furnishing a new family room and need a large sectional — two kids and a dog, so it has to hold up.",
+      "ema_said": "I've got the full catalog in front of me. The biggest ones that also look built to last with kids and a dog are The Trufton... and The LaCreuz...",
+      "problem": "Ema skipped nearly the entire required process — quick USA-shipping qualification, pain, solution, urgency, ideal offer, contact collection, room measurements/fit check, visualization — and jumped straight to recommending and then closing/discounting.",
+      "why_it_matters": "A $6,600 sectional was sold with no room-size or doorway fit verification and no contact info captured.",
+      "suggested_fix": "At minimum verify space/doorway fit and collect contact info before closing."
+    },
+    {
+      "severity": "medium",
+      "category": "product facts / possible fabrication",
+      "customer_said": "The LaCreuz sounds promising — give me its exact dimensions, the price, and confirm it's actually in stock.",
+      "ema_said": "The Trufton—a seven-seater in light gray linen with pocket coil springs and each seat rated for 250 pounds—and The LaCreuz... with 300-pound capacity per seat",
+      "problem": "Per-seat weight ratings appeared only after the customer pushed back and differ from her first description of the same products, suggesting invented detail.",
+      "why_it_matters": "Fabricated spec numbers on load ratings are exactly the kind of claim the spec forbids.",
+      "suggested_fix": "Only state specs present in get_products output; keep them consistent."
+    },
+    {
+      "severity": "low",
+      "category": "conversation quality",
+      "customer_said": "Thanks! So what would you recommend — a couple of specific sectionals that can survive kids and a dog?",
+      "ema_said": "I've got the full catalog in front of me.",
+      "problem": "Meta-commentary about having the catalog edges toward announcing tool/lookup behavior.",
+      "why_it_matters": "Spec bans referencing checking/pulling up data; just answer.",
+      "suggested_fix": "Drop the preamble and state the two options."
+    }
+  ]
+}

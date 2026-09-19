@@ -1,0 +1,118 @@
+{
+  "id": "01_happy_path_sales",
+  "title": "Happy-path shopper — full sales flow",
+  "coverage": "Sales-script phases (intro, take control, needs discovery, narrowing), asking good discovery questions, saving/refering favorites, room-visualization mention, honest helpfulness, natural closing/contact capture.",
+  "turns": [
+    {
+      "customer": "Hi there! I just moved into a new place and I'm looking for a couch, ideally a sectional for our living room.",
+      "heard": "Hi there, I just moved into a new place and I'm looking for a couch, ideally a sectional for our living room.",
+      "ema": "Hey, I’m Ema. What’s your name?"
+    },
+    {
+      "customer": "I'm Sarah, Sarah Coleman. Nice to meet you!",
+      "heard": "I'm Sarah, Sarah Coleman. Nice to meet you.",
+      "ema": "Nice to meet you too, Sarah. I'm your AI assistant here at Tempest, built to help people figure out exactly what kind of couch they want and need for their home. Even if you don't end up buying from us, I can still help you get clear on the right size, comfort, and setup so you don't end up with something that doesn't work. I can help with both shopping and existing-order support. Just so I know—are you here because you need to buy a couch sometime soon, maybe sometime in the future, or have you already bought something from us and you're here for support?"
+    },
+    {
+      "customer": "Definitely shopping — we just moved in and we're sitting on camping chairs right now, so pretty soon! I'd love to get something in the next few weeks.",
+      "heard": "Definitely shopping. We just moved in and we're sitting on camping chairs right now, so pretty soon. I'd love to get something in the next few weeks.",
+      "ema": "Got it—camping chairs are no way to live. Before we get too far into it, could you give me a little more context on what you're picturing for the sectional?"
+    },
+    {
+      "customer": "Something comfy for movie nights with my partner — an L-shape, maybe with a chaise to stretch out on. Our living room is smallish, about 11 by 13 feet.",
+      "heard": "Something comfy for movie nights with my partner. An L-shape, maybe with a chaise to stretch out on. Our living room is smallish, about 11 by 13 feet.",
+      "ema": "I'm not finding any sectionals in our current catalog."
+    },
+    {
+      "customer": "Oh, really? Hmm. Do you have anything else that might work — like a sofa with an ottoman or a chaise sofa?",
+      "heard": "Oh really? Hm, do you have anything else that might work? Like a sofa with an ottoman or a chaise sofa?",
+      "ema": "We actually have several great options that could work for your space. The most compact L-shapes that should fit your 11-by-13 room are The Artemitize at about 9¼ by 6½ feet, The Hazeli in black at roughly 8⅔ by 6¼ feet with a reversible chaise and ottoman, and The Rucleezio in dark grey leather at about 9½ by 5½ feet with a reclining back and USB port. Which of these catch your eye?"
+    },
+    {
+      "customer": "Oh, the Hazeli sounds interesting with that reversible chaise — but I've got two dogs, so how does the fabric hold up? The leather one might be easier to wipe down, honestly.",
+      "heard": "Oh, the Hazeli sounds interesting with that reversible chaise, but I've got two dogs, so how does the fabric hold up? The leather one might be easier to wipe down, honestly.",
+      "ema": "Let me pull the details on both."
+    },
+    {
+      "customer": "Great, thanks — and could I see what one of them would actually look like in my room? I could send a photo of the space.",
+      "heard": "Great, thanks. And could I see what one of them would actually look like in my room? I could send a photo of the space.",
+      "ema": "The Hazeli's black polyfiber has removable seat cushions and covers, which makes spot-cleaning and maintenance easier. The Rucleezio's genuine Brazilian leather is naturally more resistant to hair and easier to wipe"
+    },
+    {
+      "customer": "That leather sounds like it might be the winner with my two shedding monsters — what's the price on the Rucleezio?",
+      "heard": "That leather sounds like it might be the winner with my two shedding monsters. What's the price on the Rucleezio?",
+      "ema": "The three-seat Rucleezio is $8,625. There's also a four-piece version at $10,830 if you need more seating. Want to visualize the three-seater in your space?"
+    }
+  ],
+  "transcript": [
+    {
+      "role": "ema",
+      "text": ""
+    },
+    {
+      "role": "customer",
+      "text": "Hi there! I just moved into a new place and I'm looking for a couch, ideally a sectional for our living room."
+    },
+    {
+      "role": "ema",
+      "text": "Hey, I’m Ema. What’s your name?"
+    },
+    {
+      "role": "customer",
+      "text": "I'm Sarah, Sarah Coleman. Nice to meet you!"
+    },
+    {
+      "role": "ema",
+      "text": "Nice to meet you too, Sarah. I'm your AI assistant here at Tempest, built to help people figure out exactly what kind of couch they want and need for their home. Even if you don't end up buying from us, I can still help you get clear on the right size, comfort, and setup so you don't end up with something that doesn't work. I can help with both shopping and existing-order support. Just so I know—are you here because you need to buy a couch sometime soon, maybe sometime in the future, or have you already bought something from us and you're here for support?"
+    },
+    {
+      "role": "customer",
+      "text": "Definitely shopping — we just moved in and we're sitting on camping chairs right now, so pretty soon! I'd love to get something in the next few weeks."
+    },
+    {
+      "role": "ema",
+      "text": "Got it—camping chairs are no way to live. Before we get too far into it, could you give me a little more context on what you're picturing for the sectional?"
+    },
+    {
+      "role": "customer",
+      "text": "Something comfy for movie nights with my partner — an L-shape, maybe with a chaise to stretch out on. Our living room is smallish, about 11 by 13 feet."
+    },
+    {
+      "role": "ema",
+      "text": "I'm not finding any sectionals in our current catalog."
+    },
+    {
+      "role": "customer",
+      "text": "Oh, really? Hmm. Do you have anything else that might work — like a sofa with an ottoman or a chaise sofa?"
+    },
+    {
+      "role": "ema",
+      "text": "We actually have several great options that could work for your space. The most compact L-shapes that should fit your 11-by-13 room are The Artemitize at about 9¼ by 6½ feet, The Hazeli in black at roughly 8⅔ by 6¼ feet with a reversible chaise and ottoman, and The Rucleezio in dark grey leather at about 9½ by 5½ feet with a reclining back and USB port. Which of these catch your eye?"
+    },
+    {
+      "role": "customer",
+      "text": "Oh, the Hazeli sounds interesting with that reversible chaise — but I've got two dogs, so how does the fabric hold up? The leather one might be easier to wipe down, honestly."
+    },
+    {
+      "role": "ema",
+      "text": "Let me pull the details on both."
+    },
+    {
+      "role": "customer",
+      "text": "Great, thanks — and could I see what one of them would actually look like in my room? I could send a photo of the space."
+    },
+    {
+      "role": "ema",
+      "text": "The Hazeli's black polyfiber has removable seat cushions and covers, which makes spot-cleaning and maintenance easier. The Rucleezio's genuine Brazilian leather is naturally more resistant to hair and easier to wipe"
+    },
+    {
+      "role": "customer",
+      "text": "That leather sounds like it might be the winner with my two shedding monsters — what's the price on the Rucleezio?"
+    },
+    {
+      "role": "ema",
+      "text": "The three-seat Rucleezio is $8,625. There's also a four-piece version at $10,830 if you need more seating. Want to visualize the three-seater in your space?"
+    }
+  ],
+  "error": null
+}

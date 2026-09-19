@@ -1,0 +1,78 @@
+{
+  "id": "04_product_specs",
+  "title": "Detail-oriented buyer — exact specs & stock",
+  "mistakes": [
+    {
+      "severity": "critical",
+      "category": "accuracy-hallucination",
+      "customer_said": "Nice to meet you too. So which sofa models do you actually have in stock right now?",
+      "ema_said": "The Anthony is a four-seat genuine Italian leather sofa—82 in stock at $3,750. Both are ready to ship. Which one would you like the full specs on first?",
+      "problem": "\"The Anthony\" is not in the catalog. The name, material (\"genuine Italian leather\"), seat count, stock count (82) and price ($3,750) are all fabricated.",
+      "why_it_matters": "Completely invented product and pricing destroys trust, misleads the buyer, and cannot be fulfilled.",
+      "suggested_fix": "Call get_products and list only real in-stock items (e.g. The Labotina, Oraclessi, Oraclave, Nordvik, Memphis, Monterey, Acadia Classic)."
+    },
+    {
+      "severity": "critical",
+      "category": "accuracy-hallucination",
+      "customer_said": "You said \"both\" but I only heard about the Anthony — what's the second model?",
+      "ema_said": "The second model is The Otis—a modern L-shaped two-piece sectional in beige with walnut accents, 61 in stock at $2,625.90.",
+      "problem": "\"The Otis\" does not exist in the catalog; configuration, color, stock count (61) and price are fabricated.",
+      "why_it_matters": "A detail-oriented buyer is being given entirely false catalog data, guaranteeing a failed order and reputational damage.",
+      "suggested_fix": "Only quote products returned by get_products."
+    },
+    {
+      "severity": "high",
+      "category": "accuracy-hallucination",
+      "customer_said": "Then flag it — I need those exact specs for both the Anthony and the Otis in writing before I spend anything. Does the Otis have dimensions listed, or is that missing too?",
+      "ema_said": "The Otis lists an engineered wood and solid wood frame, but like The Anthony, the exact assembled dimensions, seat depth, and shipping weight aren't in the product data.",
+      "problem": "Invents a frame material for a non-existent product, and falsely claims dimensions/weight aren't in product data — the real catalog descriptions contain exact L×W×H, weight, and material.",
+      "why_it_matters": "Both fabricates a spec and wrongly tells the customer verified data is unavailable, blocking a ready-to-buy customer.",
+      "suggested_fix": "Read dimensions/weight/material directly from the real get_products description."
+    },
+    {
+      "severity": "high",
+      "category": "tool-failure",
+      "customer_said": "Then flag it — I need those exact specs for both the Anthony and the Otis in writing before I spend anything.",
+      "ema_said": "I've flagged this for our team. Your ticket reference is 8ae62020-3ace-40f2-a265-e57c2891eff5.",
+      "problem": "A support ticket was filed without ever collecting the customer's real email, which submit_support_ticket requires and which the spec says must never be invented.",
+      "why_it_matters": "Either an email was fabricated or the ticket cannot reach the customer — yet Ema promised a written email reply.",
+      "suggested_fix": "Ask for the customer's email before filing, then confirm the reference."
+    },
+    {
+      "severity": "high",
+      "category": "policy",
+      "customer_said": "No, that's it — just make sure those specs come to me in writing by email, and I'm not ordering until I have them.",
+      "ema_said": "Our support team has your request and will email you the verified specs for both The Anthony and The Otis.",
+      "problem": "Promises an email follow-up for fabricated products with no email address on file.",
+      "why_it_matters": "A promise that cannot be kept; customer will wait indefinitely and lose the sale/trust.",
+      "suggested_fix": "Only promise follow-up once a real email is captured and the products are real."
+    },
+    {
+      "severity": "high",
+      "category": "script-adherence",
+      "customer_said": "Hi, this is David Chen — I'm looking at your couches and I need exact specs before I buy anything. Can you tell me what sofa models you currently have in stock?",
+      "ema_said": "Hi David, nice to meet you.",
+      "problem": "Ema skipped essentially all of Phase 1 and Phase 2 (explaining she's an AI assistant, what she helps with, shopping vs support, taking control) and also never answered the direct in-stock question in that turn.",
+      "why_it_matters": "No discovery, no qualification, no USA-shipping check — the entire sales process was bypassed.",
+      "suggested_fix": "Answer the stock question, then run the Phase 1/2 intro and quick qualification."
+    },
+    {
+      "severity": "medium",
+      "category": "conversation-quality",
+      "customer_said": "You said \"both\" but I only heard about the Anthony — what's the second model? And for the Anthony, I need overall width, depth, height, seat depth, frame material, and shipping weight.",
+      "ema_said": "The second model is The Otis—a modern L-shaped two-piece sectional in beige with walnut accents, 61 in stock at $2,625.90.",
+      "problem": "Ignored the explicit spec request; the customer had to ask three separate times before getting any response about dimensions.",
+      "why_it_matters": "Frustrates a detail-oriented buyer and violates the rule to answer direct questions first.",
+      "suggested_fix": "Answer both parts of the question in one reply."
+    },
+    {
+      "severity": "medium",
+      "category": "conversation-quality",
+      "customer_said": "Then let's have them — width, depth, height, seat depth, frame material, and shipping weight for the Anthony.",
+      "ema_said": "You're right, my apologies.",
+      "problem": "Empty filler turn that again fails to provide any of the requested information.",
+      "why_it_matters": "Wastes the customer's time and compounds the non-answer pattern.",
+      "suggested_fix": "Apologize and immediately deliver the specs in the same turn."
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "id": "09_out_of_scope",
+  "title": "Out-of-scope & off-topic requests",
+  "mistakes": [
+    {
+      "severity": "high",
+      "category": "script-adherence",
+      "customer_said": "Hey, quick question — do you guys sell mattresses?",
+      "ema_said": "We don't carry mattresses. We're focused on couches and living room furniture. Are you shopping for a couch, or something else?",
+      "problem": "Ema answered the question (correct) but never delivered Phase 1: she never introduced herself as Ema/an AI assistant, never asked the customer's name, and never explained what she helps with or asked whether they're shopping or need order support. The spec requires answering the direct question and THEN continuing into the sales process.",
+      "why_it_matters": "The entire sales process is never started; no name, no qualification, no memory record — the lead is lost and the approved script is skipped.",
+      "suggested_fix": "After answering, pivot: 'By the way, I'm Ema, Tempest's AI assistant — what's your name?' and continue Phase 1."
+    },
+    {
+      "severity": "medium",
+      "category": "script-adherence",
+      "customer_said": "Ha, fair enough. Alright, tell me a joke then.",
+      "ema_said": "Why don't couches ever get into arguments? They always cushion the blow.",
+      "problem": "Per 'When Customer Is Silly/Random', Ema should joke and then smoothly return to the current sales phase. She told the joke and stopped, never redirecting or advancing Phase 1.",
+      "why_it_matters": "Ema repeatedly cedes control; the conversation drifts through four off-topic questions with no progress toward qualification.",
+      "suggested_fix": "Follow the joke with a redirect back into the intro/name question."
+    },
+    {
+      "severity": "medium",
+      "category": "accuracy-hallucination",
+      "customer_said": "Gotcha. Do you guys price-match Wayfair?",
+      "ema_said": "I don't see a formal price-match policy in our terms. If you have a specific couch and a Wayfair price in mind, I can check what options we might have for you.",
+      "problem": "Implies she may be able to match or approach a competitor price. Offers may only be presented after get_product_economics/create_offer and only within margin limits; dangling 'options' against a Wayfair price sets an expectation she likely cannot fulfill, and no offer phase has been reached.",
+      "why_it_matters": "Creates an implied discount/price-match promise that isn't authorized and can break trust at checkout.",
+      "suggested_fix": "State plainly that Tempest doesn't price match, then redirect to value/fit rather than hinting at unverified 'options'."
+    },
+    {
+      "severity": "low",
+      "category": "accuracy-hallucination",
+      "customer_said": "Last one — do you sell dining tables?",
+      "ema_said": "We don't have dining tables either. We're all about couches and living room pieces. Anything couch-related I can help you with?",
+      "problem": "Repeatedly asserts Tempest carries broader 'living room furniture / living room pieces' when the verified catalog contains only couches; the category claim isn't backed by tool data and conflicts with denying every non-couch item asked about.",
+      "why_it_matters": "Vague category claims can mislead customers into expecting products that don't exist.",
+      "suggested_fix": "Say Tempest specializes in couches/sofas specifically."
+    },
+    {
+      "severity": "low",
+      "category": "conversation-quality",
+      "customer_said": "Good to know. Last one — do you sell dining tables?",
+      "ema_said": "We don't have dining tables either. We're all about couches and living room pieces. Anything couch-related I can help you with?",
+      "problem": "Near-identical phrasing and closing question to her mattress answer ('We don't carry mattresses. We're focused on couches and living room furniture. Are you shopping for a couch...'), making her sound templated rather than natural.",
+      "why_it_matters": "Repetition reads as robotic and reduces rapport; the spec explicitly asks her to vary openers and reactions.",
+      "suggested_fix": "Vary phrasing and take the opportunity to actually advance Phase 1 instead of asking the same generic question again."
+    }
+  ]
+}
