@@ -20,7 +20,19 @@ import { migrate } from "./db/pool.js";
 import { purgeExpired as purgeMemory } from "./memory/store.js";
 
 export async function buildApp() {
-  const app = Fastify({ logger: false, bodyLimit: 25 * 1024 * 1024 });
+  const app = Fastify({
+    logger: false,
+    bodyLimit: 25 * 1024 * 1024,
+    // Behind Caddy (loopback-bound 127.0.0.1:8090; inside Docker the proxied
+    // connection arrives from the bridge gateway 172.16.x.1). Trust these private
+    // hops so request.ip resolves to the real client from X-Forwarded-For.
+    // WITHOUT this, @fastify/rate-limit keyed every visitor on the single proxy IP,
+    // so the WHOLE store shared one 60/min bucket — a chatty voice call (or another
+    // visitor's traffic) then 429s the next /chat and the widget shows "couldn't
+    // chat right now". Safe because the port is loopback-bound: only Caddy can reach
+    // it, so a client cannot inject a trusted X-Forwarded-For directly.
+    trustProxy: "loopback,linklocal,uniquelocal",
+  });
 
   // CORS: "*" allows all; otherwise a comma-separated allowlist of origins/hosts.
   // Entries may be full origins (https://x.com), bare hosts (x.com), or wildcard

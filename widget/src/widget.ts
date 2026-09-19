@@ -44,6 +44,9 @@ interface TempestConfig {
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  // "voice" = a spoken turn. Kept in this.messages (memory, backend recall,
+  // continuity) but NEVER rendered as a text bubble. Absent = a typed chat turn.
+  channel?: "voice";
 }
 
 declare global {
@@ -144,7 +147,6 @@ class TempestWidget {
   private voicePillEnd?: HTMLButtonElement;
   private pillTimer?: number;
   private lastVoiceRole?: "user" | "ai";
-  private lastVoiceEl?: HTMLDivElement;
 
   constructor(shadow: ShadowRoot) {
     this.root = document.createElement("div");
@@ -282,9 +284,12 @@ class TempestWidget {
     this.dealLock.start();
 
     // Restore the prior conversation (Ema is "still here" across page loads) or
-    // show the first-time greeting if this is a fresh visitor.
-    if (this.messages.length > 0) {
-      for (const m of this.messages) {
+    // show the first-time greeting if this is a fresh visitor. Voice turns are
+    // filtered from the RENDER only — this.messages itself stays complete so
+    // memory, backend recall, and continuity still see the whole conversation.
+    const visible = this.messages.filter((m) => m.channel !== "voice");
+    if (visible.length > 0) {
+      for (const m of visible) {
         this.addMessage(m.role === "assistant" ? "ai" : "user", m.content);
       }
     } else {
@@ -471,6 +476,13 @@ class TempestWidget {
             ((m as ChatMessage).role === "user" || (m as ChatMessage).role === "assistant") &&
             typeof (m as ChatMessage).content === "string",
         )
+        // Normalize the channel marker: only the exact string "voice" counts, so a
+        // malformed stored value can never masquerade as (or corrupt) a voice turn.
+        .map((m) => ({
+          role: m.role,
+          content: m.content,
+          ...(m.channel === "voice" ? { channel: "voice" as const } : {}),
+        }))
         .slice(-HISTORY_MAX);
     } catch {
       return [];
@@ -629,28 +641,27 @@ class TempestWidget {
     }
   }
 
-  // Voice turns flow into the SAME conversation as text: rendered in the panel,
-  // pushed into this.messages (so they persist across page loads and are sent to
-  // the backend for recall), matching how a "proper" sales chat remembers a call.
+  // Voice turns are kept in the SAME conversation as text — pushed into
+  // this.messages (so they persist across page loads and are sent to the backend
+  // for memory/recall) — but tagged channel:"voice" and NEVER rendered as chat
+  // bubbles. So Ema remembers the spoken conversation while it stays off the UI.
   private onVoiceTranscript(role: "user" | "ai", text: string, replace: boolean): void {
-    const kind = role === "user" ? "user" : "ai";
     const mrole: "user" | "assistant" = role === "user" ? "user" : "assistant";
+    const last = this.messages[this.messages.length - 1];
     const canReplace =
       replace &&
       this.lastVoiceRole === role &&
-      !!this.lastVoiceEl &&
-      this.messages.length > 0 &&
-      this.messages[this.messages.length - 1].role === mrole;
+      !!last &&
+      last.channel === "voice" &&
+      last.role === mrole;
     if (canReplace) {
-      this.lastVoiceEl!.textContent = text;
-      this.messages[this.messages.length - 1].content = text;
-      this.scrollToBottom();
+      last!.content = text; // extend the same spoken turn (partial transcript merge)
     } else {
-      this.lastVoiceEl = this.addMessage(kind, text);
+      this.messages.push({ role: mrole, content: text, channel: "voice" });
       this.lastVoiceRole = role;
-      this.messages.push({ role: mrole, content: text });
     }
     this.saveHistory();
+    // Intentionally no addMessage()/DOM write — voice turns are never shown as text.
   }
 
   private onVoiceStatus(text: string): void {
