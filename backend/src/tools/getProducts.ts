@@ -239,20 +239,36 @@ function mapNodeCompact(node: GqlProductNode): Product {
   };
 }
 
+const SEARCH_STOPWORDS = new Set([
+  "the", "a", "an", "for", "and", "or", "with", "that", "this", "some", "any",
+  "of", "to", "in", "on", "my", "our", "your", "me", "we", "is", "are", "it",
+  "something", "need", "want", "looking", "really", "kind", "like", "new",
+  "would", "could", "get", "one", "please", "you", "have", "has",
+]);
+
+// Build an OR query across the meaningful CONTENT words of the request, not the
+// whole phrase. A descriptive query like "deep sectional for napping pet friendly"
+// used to become title:*deep sectional for napping pet friendly* → zero matches;
+// now it ORs each content token (deep, sectional, napping, pet, friendly) across
+// title/product_type/tag, so the category word ("sectional") still surfaces results.
 function buildSearchQuery(rawQuery: string): string {
   const term = rawQuery.trim().toLowerCase();
-  const singular = term.endsWith("s") ? term.slice(0, -1) : term;
+  const tokens = Array.from(
+    new Set(
+      term
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean)
+        .map((w) => (w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w))
+        .filter((w) => w.length >= 3 && !SEARCH_STOPWORDS.has(w)),
+    ),
+  ).slice(0, 6);
 
-  const parts: string[] = [];
-  parts.push(term);
-  if (singular !== term) {
-    parts.push(singular);
-  }
-  parts.push(`title:*${singular}*`);
-  parts.push(`product_type:*${singular}*`);
-  parts.push(`tag:*${singular}*`);
-
-  return parts.join(" OR ");
+  // Full-text OR over the content tokens. Bare tokens use Shopify's full-text
+  // matching (good recall, incl. matches in title/type/tags/vendor), which is what
+  // made single-word queries like "sectional" return ~20. A bare MULTI-word phrase
+  // would be treated as an implicit AND and match nothing, so we OR the tokens.
+  if (tokens.length === 0) return term;
+  return tokens.join(" OR ");
 }
 
 function endpointUrl(): string {
@@ -340,10 +356,13 @@ export async function getProducts(query: string): Promise<Product[]> {
       });
       if (nodes === null) return [];
       if (nodes.length === 0) {
-        logger.info({ query, broad: false }, "getProducts: no products matched");
-        return [];
+        // No keyword match: fall back to the full catalog so Ema always has real
+        // products to offer instead of telling the customer "nothing fits".
+        logger.info({ query }, "getProducts: search empty — falling back to broad catalog");
+        result = await getBroadProducts();
+      } else {
+        result = nodes.map((node) => mapNodeFull(node));
       }
-      result = nodes.map((node) => mapNodeFull(node));
     }
     if (result.length > 0) productCache.set(cacheKey, { t: now, data: result });
     return result;
