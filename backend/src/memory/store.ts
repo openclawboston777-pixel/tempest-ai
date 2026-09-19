@@ -110,6 +110,24 @@ export async function getVoiceSecondsToday(visitorId: string): Promise<number> {
   }
 }
 
+// How many room renders this visitor has generated today (per-person render cap).
+// Counts the 'visualization' events logged after each successful render.
+export async function getVisualizeCountToday(visitorId: string): Promise<number> {
+  if (!config.dbEnabled) return 0;
+  try {
+    if (!visitorId || !VISITOR_RE.test(visitorId)) return 0;
+    const res = await query<{ n: string }>(
+      `SELECT count(*)::int AS n FROM events
+       WHERE visitor_id=$1 AND type='visualization' AND created_at::date = current_date`,
+      [visitorId]
+    );
+    return Number(res?.rows?.[0]?.n ?? 0) || 0;
+  } catch (err) {
+    logger.error({ err: String(err) }, "getVisualizeCountToday failed");
+    return 0;
+  }
+}
+
 export async function recordProductInterest(
   visitorId: string,
   item: { productTitle: string; productId?: string; source?: string }

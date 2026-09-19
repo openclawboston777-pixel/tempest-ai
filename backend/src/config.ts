@@ -28,6 +28,8 @@ const EnvSchema = z.object({
   GEMINI_IMAGE_MODEL: z.string().default("gemini-3.1-flash-image"),
   VISUALIZE_MAX_PER_SESSION: z.coerce.number().int().positive().default(6),
   VISUALIZE_MAX_PER_DAY: z.coerce.number().int().positive().default(300),
+  // Per-person daily render cap.
+  VISUALIZE_MAX_PER_PERSON_PER_DAY: z.coerce.number().int().positive().default(30),
   VISUALIZE_MAX_UPLOAD_MB: z.coerce.number().positive().default(12),
   VOICE_TOKENS_MAX_PER_DAY: z.coerce.number().int().positive().default(500),
   // Per-person daily voice-time cap (seconds). Default 5 hours.
@@ -95,6 +97,7 @@ export const config = {
   visualizeEnabled: Boolean(env.GEMINI_API_KEY),
   visualizeMaxPerSession: env.VISUALIZE_MAX_PER_SESSION,
   visualizeMaxPerDay: env.VISUALIZE_MAX_PER_DAY,
+  visualizeMaxPerPersonPerDay: env.VISUALIZE_MAX_PER_PERSON_PER_DAY,
   visualizeMaxUploadBytes: Math.round(env.VISUALIZE_MAX_UPLOAD_MB * 1024 * 1024),
   voiceTokensMaxPerDay: env.VOICE_TOKENS_MAX_PER_DAY,
   voiceMaxSecondsPerPersonPerDay: env.VOICE_MAX_SECONDS_PER_PERSON_PER_DAY,

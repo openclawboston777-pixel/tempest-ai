@@ -5,7 +5,7 @@ import { logger } from "../logger.js";
 import { putObject, dateKey, sanitizeId } from "../storage/s3.js";
 import { getProducts } from "../tools/getProducts.js";
 import { visualizeRoom } from "../providers/geminiImageProvider.js";
-import { recordProductInterest } from "../memory/store.js";
+import { recordProductInterest, getVisualizeCountToday } from "../memory/store.js";
 import { logEvent } from "../memory/analytics.js";
 import { allow } from "../costGuard.js";
 
@@ -22,8 +22,6 @@ const EXT: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
 };
-
-const sessionCounts = new Map<string, number>();
 
 type ParserDone = (err: Error | null, body?: Buffer) => void;
 
@@ -123,6 +121,8 @@ const visualizeRoutes: FastifyPluginAsync = async (app) => {
         }
 
         const note = typeof q.note === "string" ? q.note.slice(0, 300) : undefined;
+        // Customer's real-world size reference in the room photo (for true scale).
+        const scale = typeof q.scale === "string" ? q.scale.slice(0, 200) : undefined;
 
         if (!config.visualizeEnabled) {
           reply.code(503);
@@ -145,10 +145,11 @@ const visualizeRoutes: FastifyPluginAsync = async (app) => {
           return { ok: false, error: "missing_image" };
         }
 
-        const used = sessionCounts.get(id) ?? 0;
-        if (used >= config.visualizeMaxPerSession) {
+        // Per-person daily render cap (cost control).
+        const usedToday = await getVisualizeCountToday(id);
+        if (usedToday >= config.visualizeMaxPerPersonPerDay) {
           reply.code(429);
-          return { ok: false, error: "visualize_limit_reached" };
+          return { ok: false, error: "visualize_person_limit" };
         }
         // Global daily cost cap (backstop against runaway/abuse across sessions).
         if (!allow("visualize", config.visualizeMaxPerDay)) {
@@ -168,6 +169,8 @@ const visualizeRoutes: FastifyPluginAsync = async (app) => {
           roomMime: contentType,
           productImageUrl: product.image!,
           productTitle: product.title,
+          productDetails: product.description,
+          scale,
           note,
         });
 
@@ -181,8 +184,6 @@ const visualizeRoutes: FastifyPluginAsync = async (app) => {
           reply.code(code);
           return { ok: false, error: result.error };
         }
-
-        sessionCounts.set(id, used + 1);
 
         // Visualizing a product is a strong interest signal — remember it.
         void recordProductInterest(id, {
@@ -209,6 +210,7 @@ const visualizeRoutes: FastifyPluginAsync = async (app) => {
               productUrl: product.url,
               productImageUrl: product.image,
               note,
+              scale,
               at: new Date().toISOString(),
             }),
             "application/json"
@@ -222,7 +224,7 @@ const visualizeRoutes: FastifyPluginAsync = async (app) => {
           image: `data:${result.mime};base64,${result.image.toString("base64")}`,
           productTitle: product.title,
           productUrl: product.url,
-          remaining: Math.max(0, config.visualizeMaxPerSession - (used + 1)),
+          remaining: Math.max(0, config.visualizeMaxPerPersonPerDay - (usedToday + 1)),
           key: renderKey,
         };
       } catch (err) {

@@ -71,6 +71,7 @@ export class VisualizePanel {
   private previewImg: HTMLImageElement | null = null;
   private previewName: HTMLSpanElement | null = null;
   private noteInput: HTMLInputElement | null = null;
+  private scaleInput: HTMLInputElement | null = null;
   private generateBtn: HTMLButtonElement | null = null;
   private errorEl: HTMLDivElement | null = null;
   private formEl: HTMLDivElement | null = null;
@@ -227,7 +228,26 @@ export class VisualizePanel {
 
     form.appendChild(fileWrap);
 
-    // note
+    // step 3 — required real-world size reference so the AI can render true scale
+    form.appendChild(this.makeStepLabel("3", "Give a size reference (required)"));
+
+    const scale = document.createElement("input");
+    scale.type = "text";
+    scale.className = "tw-viz-input";
+    scale.maxLength = 200;
+    scale.placeholder =
+      "Type the real distance between two things in your photo — e.g. “the back wall is 12 ft wide”";
+    scale.addEventListener("input", () => this.updateGenerateState());
+    this.scaleInput = scale;
+    form.appendChild(scale);
+
+    const scaleHint = document.createElement("div");
+    scaleHint.className = "tw-viz-grid-status";
+    scaleHint.textContent =
+      "This lets Ema size the couch to how it will really look in your space.";
+    form.appendChild(scaleHint);
+
+    // note (optional placement)
     const note = document.createElement("input");
     note.type = "text";
     note.className = "tw-viz-input";
@@ -489,8 +509,9 @@ export class VisualizePanel {
 
   private updateGenerateState(): void {
     if (!this.generateBtn) return;
+    const hasScale = !!(this.scaleInput && this.scaleInput.value.trim());
     this.generateBtn.disabled =
-      this.busy || !this.selectedTitle || !this.chosenFile;
+      this.busy || !this.selectedTitle || !this.chosenFile || !hasScale;
   }
 
   /* ------------------------------------------------------------------ */
@@ -562,7 +583,8 @@ export class VisualizePanel {
 
   private async generate(): Promise<void> {
     if (this.busy) return;
-    if (!this.selectedTitle || !this.chosenFile) return;
+    const scaleVal = this.scaleInput ? this.scaleInput.value.trim() : "";
+    if (!this.selectedTitle || !this.chosenFile || !scaleVal) return;
 
     this.setBusy(true);
     this.showError("");
@@ -578,6 +600,7 @@ export class VisualizePanel {
         "&productQuery=" +
         encodeURIComponent(this.selectedTitle);
       if (note) url += "&note=" + encodeURIComponent(note.slice(0, 300));
+      url += "&scale=" + encodeURIComponent(scaleVal.slice(0, 200));
 
       const res = await fetch(url, {
         method: "POST",
@@ -611,6 +634,8 @@ export class VisualizePanel {
     switch (code) {
       case "visualize_limit_reached":
         return "You've reached the visualization limit for this chat. ";
+      case "visualize_person_limit":
+        return "You've reached your render limit (30 rooms) for today. Try again tomorrow.";
       case "product_not_found":
         return "I couldn't find that product's photo\u2014try another.";
       case "visualize_disabled":
@@ -649,6 +674,7 @@ export class VisualizePanel {
     }
     if (this.searchInput) this.searchInput.disabled = on;
     if (this.noteInput) this.noteInput.disabled = on;
+    if (this.scaleInput) this.scaleInput.disabled = on;
     if (this.fileInput) this.fileInput.disabled = on;
     this.updateGenerateState();
   }

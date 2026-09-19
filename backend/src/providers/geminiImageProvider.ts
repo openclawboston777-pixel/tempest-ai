@@ -9,6 +9,23 @@ export interface VisualizeInput {
   productImageUrl: string;
   productTitle: string;
   note?: string;
+  // Customer-provided real-world size reference in the room photo (e.g. "the back
+  // wall is 12 feet wide") — used to scale the couch to true size.
+  scale?: string;
+  // The product's real description/spec text (contains actual dimensions).
+  productDetails?: string;
+}
+
+// Pull an explicit dimensions phrase out of the product description if present, so
+// the model gets the couch's true size front-and-center (not buried in prose).
+function extractDimensions(details?: string): string | null {
+  if (!details) return null;
+  const m = details.match(
+    /(\d[\d.]*)\s*(?:in(?:ches)?|")?\s*[wW]?\s*[x×by]{1,2}\s*(\d[\d.]*)\s*(?:in(?:ches)?|")?\s*[dD]?\s*(?:[x×by]{1,2}\s*(\d[\d.]*)\s*(?:in(?:ches)?|")?\s*[hH]?)?/
+  );
+  if (m) return m[0].trim();
+  const dim = details.match(/dimensions?[:\s][^.\n]{3,60}/i);
+  return dim ? dim[0].trim() : null;
 }
 
 export type VisualizeOutput =
@@ -36,8 +53,28 @@ function buildPrompt(input: VisualizeInput): string {
     "Keep the product's EXACT design, color, materials, textures, and proportions accurate. Do not redesign, restyle, or invent details."
   );
   lines.push(
-    "Match the room's lighting, white balance, perspective, camera angle, scale relative to the room, and the floor plane. Cast realistic shadows and correct contact shadows where the product meets surfaces."
+    "Match the room's lighting, white balance, perspective, camera angle, and the floor plane. Cast realistic shadows and correct contact shadows where the product meets surfaces."
   );
+
+  // TRUE-SCALE instructions: use the couch's real dimensions + the customer's
+  // real-world distance reference so the render shows the couch at accurate size.
+  const dims = extractDimensions(input.productDetails);
+  if (dims) {
+    lines.push(`The couch's REAL dimensions are approximately: ${dims}.`);
+  }
+  if (input.scale && input.scale.trim().length > 0) {
+    lines.push(
+      `The customer gave this real-world size reference in their photo: "${input.scale.trim()}". Use it to establish the true scale of the room.`
+    );
+    lines.push(
+      "CRITICAL — SCALE ACCURATELY: Using that real-world reference to gauge the room's true dimensions, size the couch so it appears at its ACTUAL real-world size relative to the room and the reference object. Do not shrink or enlarge it to make it 'fit' — if the couch would realistically be too big for the space, show it at its true (large) size. The goal is an honest preview of how this exact couch, at its real dimensions, would actually look and fit in this room."
+    );
+  } else {
+    lines.push(
+      "Size the couch at a realistic real-world scale relative to the room; do not distort its proportions to make it fit."
+    );
+  }
+
   if (input.note && input.note.trim().length > 0) {
     lines.push(`Placement guidance from the customer: ${input.note.trim()}`);
   }
