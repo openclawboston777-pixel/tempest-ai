@@ -310,6 +310,12 @@ async function getBroadProducts(): Promise<Product[]> {
   return merged;
 }
 
+// Short in-memory cache so repeated lookups within/around a conversation don't
+// re-hit Shopify each time — cuts latency on Ema's "let me look that up" turns.
+// TTL is short so stock/price stay effectively live.
+const PRODUCT_CACHE_TTL_MS = 60_000;
+const productCache = new Map<string, { t: number; data: Product[] }>();
+
 export async function getProducts(query: string): Promise<Product[]> {
   if (config.mockShopify) {
     logger.info({ query }, "getProducts: MOCK mode (Shopify env not configured)");
@@ -317,27 +323,30 @@ export async function getProducts(query: string): Promise<Product[]> {
   }
 
   const isBroad = query.trim().length === 0;
+  const cacheKey = isBroad ? "__broad__" : buildSearchQuery(query);
+
+  const now = Date.now();
+  const hit = productCache.get(cacheKey);
+  if (hit && now - hit.t < PRODUCT_CACHE_TTL_MS) return hit.data;
 
   try {
+    let result: Product[];
     if (isBroad) {
-      return await getBroadProducts();
+      result = await getBroadProducts();
+    } else {
+      const nodes = await runQuery({
+        query: PRODUCTS_QUERY,
+        variables: { q: cacheKey },
+      });
+      if (nodes === null) return [];
+      if (nodes.length === 0) {
+        logger.info({ query, broad: false }, "getProducts: no products matched");
+        return [];
+      }
+      result = nodes.map((node) => mapNodeFull(node));
     }
-
-    const nodes = await runQuery({
-      query: PRODUCTS_QUERY,
-      variables: { q: buildSearchQuery(query) },
-    });
-
-    if (nodes === null) {
-      return [];
-    }
-
-    if (nodes.length === 0) {
-      logger.info({ query, broad: false }, "getProducts: no products matched");
-      return [];
-    }
-
-    return nodes.map((node) => mapNodeFull(node));
+    if (result.length > 0) productCache.set(cacheKey, { t: now, data: result });
+    return result;
   } catch (err) {
     logger.error({ err }, "getProducts: unexpected error");
     return [];
