@@ -1,0 +1,117 @@
+{
+  "skills": [
+    {
+      "dimension": "flow_control",
+      "rating": "ok",
+      "note": "She led the discovery sequence crisply and kept moving phase to phase, but glitched by re-asking a permission question already answered.",
+      "example": "Ema: \"Sound good if I ask you some questions while you keep browsing?\" (asked twice in a row)"
+    },
+    {
+      "dimension": "info_gathering",
+      "rating": "strong",
+      "note": "Pulled room, seats, use, comfort, style/color, pets/toddler, size limits, door width, budget, timeline, and email without drifting.",
+      "example": "\"Nine-foot wall and a 32-inch door—plenty to work with. What's the total price range you're hoping to stay around—comfortable target or hard maximum?\""
+    },
+    {
+      "dimension": "humor_tangents",
+      "rating": "ok",
+      "note": "She matched the pain-point humor warmly but let the toddler-repelling joke pass with no acknowledgment at all.",
+      "example": "Customer: \"if you find one that repels toddlers entirely, I'll pay extra\" → Ema: \"Hmm, the catalog's coming back empty on that.\""
+    },
+    {
+      "dimension": "dead_air_bridges",
+      "rating": "weak",
+      "note": "No warm bridge before the product lookup; instead she narrated an empty tool result, which is exactly the banned tool-narration.",
+      "example": "\"Hmm, the catalog's coming back empty on that.\""
+    },
+    {
+      "dimension": "looping_reoffer",
+      "rating": "weak",
+      "note": "Negotiation never occurred — the call stalled at recommendations, so no offer ladder was demonstrated.",
+      "example": "\"Want me to pull the full details on the Otis anyway, or should we browse together for other possibilities?\""
+    },
+    {
+      "dimension": "customer_choice_reaffirm",
+      "rating": "weak",
+      "note": "Never reached favorites/finalists; and her single recommendation turn framed the catalog as having nothing, giving the customer nothing to choose from.",
+      "example": "\"Nothing else in the catalog hits your exact criteria right now.\""
+    },
+    {
+      "dimension": "correctness",
+      "rating": "weak",
+      "note": "Fabricated a price and configuration for The Flexor, pushed an out-of-stock item, and falsely claimed nothing else fit despite many in-stock sub-$2,000 couches.",
+      "example": "\"The Flexor's 4-seat L-shaped configuration lands right at $1,982—within your stretch budget—but it's currently out of stock\""
+    },
+    {
+      "dimension": "correctness",
+      "rating": "weak",
+      "note": "Also opened a turn with the banned \"Got it\" and parroted the customer's words back nearly every turn.",
+      "example": "\"Got it—sink-in for naps but easy to get out of.\""
+    }
+  ],
+  "mistakes": [
+    {
+      "severity": "critical",
+      "category": "fabricated_price",
+      "customer_said": "Can you give me a couple of specific recommendations?",
+      "ema_said": "The Flexor's 4-seat L-shaped configuration lands right at $1,982—within your stretch budget",
+      "problem": "The Flexor is $1,319.24 in the catalog, not $1,982, and the '4-seat L-shaped configuration' spec is unverified. Stating a self-generated price/spec is a grounded-facts violation."
+    },
+    {
+      "severity": "critical",
+      "category": "false_catalog_claim",
+      "customer_said": "I'd love a couple of actual models that fit what I described.",
+      "ema_said": "Nothing else in the catalog hits your exact criteria right now.",
+      "problem": "Flatly untrue. Multiple in-stock couches sit at or under her $1,500–$2,000 range (e.g. The Nordvik $1,650, The Memphis $1,783.67, The Monterey $1,811.61, The Acadia Classic $1,849.49, The Alcove $1,944.17, The Haven Rattan $1,944.17, The Horizon $2,000.99). She killed the sale with a false scarcity claim."
+    },
+    {
+      "severity": "high",
+      "category": "out_of_stock_first",
+      "customer_said": "I'd love a couple of actual models that fit what I described.",
+      "ema_said": "The Flexor's 4-seat L-shaped configuration lands right at $1,982...but it's currently out of stock across all variants.",
+      "problem": "Led her recommendation with an unavailable product, building interest in something she can't sell, instead of recommending in-stock options first."
+    },
+    {
+      "severity": "high",
+      "category": "tool_narration_dead_air",
+      "customer_said": "Can you give me a couple of specific recommendations?",
+      "ema_said": "Hmm, the catalog's coming back empty on that.",
+      "problem": "Narrates the backend/lookup failure to the customer instead of giving a short human bridge and then real results. Also fails to answer the actual request."
+    },
+    {
+      "severity": "medium",
+      "category": "repetition",
+      "customer_said": "Sounds good, fire away — I'll browse while you grill me.",
+      "ema_said": "Sound good if I ask you some questions while you keep browsing?",
+      "problem": "Re-asked a question the customer had just clearly answered, wasting a turn and sounding robotic."
+    },
+    {
+      "severity": "medium",
+      "category": "scripted_monologue",
+      "customer_said": "it's for our living room, which is medium-sized, and mostly for movie nights and lounging. Something comfy that seats three or four?",
+      "ema_said": "Living room, movie nights and lounging, three or four seats—got the picture. While we're talking, just keep browsing the website normally—...Sound good if I ask you some questions while you keep browsing?",
+      "problem": "Delivered the entire Phase 2 script in one breath on a voice call, violating the one-idea-per-turn / short-turn voice rule."
+    },
+    {
+      "severity": "low",
+      "category": "banned_opener",
+      "customer_said": "Somewhere in between — sink-in enough to nap, but I don't want to need a crane to get out of it.",
+      "ema_said": "Got it—sink-in for naps but easy to get out of.",
+      "problem": "Opens with the explicitly banned 'Got it', and she parrots the customer's phrasing back nearly every turn."
+    },
+    {
+      "severity": "low",
+      "category": "missed_humor",
+      "customer_said": "though if you find one that repels toddlers entirely, I'll pay extra",
+      "ema_said": "Hmm, the catalog's coming back empty on that.",
+      "problem": "An easy warm laugh was ignored; the line reads as a flat tool failure rather than playful engagement."
+    },
+    {
+      "severity": "low",
+      "category": "summary_inaccuracy",
+      "customer_said": "Something warm and modern — maybe a mid-tone gray or greige",
+      "ema_said": "in a warm modern mid-tone gray or beige",
+      "problem": "Changed the customer's stated 'greige' to 'beige' in the confirmation summary, slightly altering a stated color criterion."
+    }
+  ]
+}

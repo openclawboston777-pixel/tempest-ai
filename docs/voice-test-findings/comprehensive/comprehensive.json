@@ -1,0 +1,187 @@
+{
+  "id": "comprehensive",
+  "title": "Comprehensive everything-test (voice)",
+  "transcript": [
+    {
+      "role": "ema",
+      "text": "Hello! I'm here to help with anything you need today—how can I assist you?"
+    },
+    {
+      "role": "customer",
+      "text": "Hi! I'm sort of in the market for a new couch, but honestly I haven't nailed anything down yet."
+    },
+    {
+      "role": "ema",
+      "text": "Hey, I’m Ema. What’s your name?"
+    },
+    {
+      "role": "customer",
+      "text": "Riley — Riley Quinn. Nice to meet you!"
+    },
+    {
+      "role": "ema",
+      "text": "Good to meet you, Riley. I’m your AI assistant here at Tempest, and I’m specifically built to help people figure out exactly what kind of couch they want, what they actually need, and what makes the most sense for their home."
+    },
+    {
+      "role": "customer",
+      "text": "Perfect, because I'm pretty clueless — I just know my current one is sagging in the middle like a hammock."
+    },
+    {
+      "role": "ema",
+      "text": "So even if you don’t end up buying anything from us, I can still help you get clear on what you should actually be looking for so you don’t end up with the wrong size, wrong comfort, or something that just doesn’t work the way you thought it would. Before we get too far into it, could you give me a little bit of context for what you think you might be looking for?"
+    },
+    {
+      "role": "customer",
+      "text": "Sure — it's for our living room, which is medium-sized, and mostly for movie nights and lounging. Something comfy that seats three or four?"
+    },
+    {
+      "role": "ema",
+      "text": "Living room, movie nights and lounging, three or four seats—got the picture. While we're talking, just keep browsing the website normally—you can close this chat panel with the X and keep looking around, and I'll still be here. What I'm really good at is helping people figure out not only what they like, but what they actually need so they don't end up with unwanted surprises later—wrong size, wrong comfort, something that doesn't work with the room, things like that. And honestly, even if you ended up buying a couch somewhere else, the questions I ask should still help you get a much clearer picture of what you should actually be looking for. The easiest way to do this is for you to keep browsing and save the couches that stand out to you the most. While you're doing that, I'll ask you some questions to help you get clear on your room, how you'll use the couch, what you like, what you don't like, and what actually matters most to you. Then once you've picked your favorites, we can take everything you told me and narrow them down based on what actually makes sense for you. Sound good if I ask you some questions while you keep browsing?"
+    },
+    {
+      "role": "customer",
+      "text": "Sounds good, fire away — I'll browse while you grill me."
+    },
+    {
+      "role": "ema",
+      "text": "Sound good if I ask you some questions while you keep browsing?"
+    },
+    {
+      "role": "customer",
+      "text": "Yep, go for it — ask away."
+    },
+    {
+      "role": "ema",
+      "text": "Alright, let's start with the pain point you mentioned. You mentioned the sagging in the middle like a hammock—what else about your current setup bothers you the most?"
+    },
+    {
+      "role": "customer",
+      "text": "It's also too shallow to actually stretch out on, and the fabric shows every single dog hair."
+    },
+    {
+      "role": "ema",
+      "text": "Shallow depth and dog hair magnet—those are real frustrations. How does the shallow depth affect movie nights and lounging for you?"
+    },
+    {
+      "role": "customer",
+      "text": "I end up half-hanging off it trying to nap — my golden retriever gets more of the couch than I do."
+    },
+    {
+      "role": "ema",
+      "text": "Half hanging off trying to nap—that's the worst. What do you definitely not want to repeat with the next couch?"
+    },
+    {
+      "role": "customer",
+      "text": "No more shallow seats or fabric that clings to dog hair — I want deep and durable."
+    },
+    {
+      "role": "ema",
+      "text": "Deep seats and something that doesn't trap every hair—smart priorities. If you got the next couch exactly right, what would be different about how you use the living room?"
+    },
+    {
+      "role": "customer",
+      "text": "I'd actually nap on it instead of the floor, and we'd host movie nights more often."
+    },
+    {
+      "role": "ema",
+      "text": "Napping on the couch instead of the floor and more movie nights—that's a great outcome to aim for. What would the ideal couch feel like when you sit or lie on it—deep and sink-in, more supportive, or somewhere in between?"
+    },
+    {
+      "role": "customer",
+      "text": "Somewhere in between — sink-in enough to nap, but I don't want to need a crane to get out of it."
+    },
+    {
+      "role": "ema",
+      "text": "Got it—sink-in for naps but easy to get out of. Anything else you're picturing about the look or feel of the finished room?"
+    },
+    {
+      "role": "customer",
+      "text": "Something warm and modern — maybe a mid-tone gray or greige, nothing too fussy."
+    },
+    {
+      "role": "ema",
+      "text": "Warm modern with a mid-tone gray or beige—sounds like a clean, inviting vibe. When are you hoping to have the new couch in place?"
+    },
+    {
+      "role": "customer",
+      "text": "Ideally within the next month or so — before the holidays hit."
+    },
+    {
+      "role": "ema",
+      "text": "Is there a move, event, family visit, or anything else you're trying to have the room ready for?"
+    },
+    {
+      "role": "customer",
+      "text": "Yeah, my in-laws visit over Thanksgiving, so I'd love it done before then."
+    },
+    {
+      "role": "ema",
+      "text": "Thanksgiving in-laws—that's a solid reason to move on this. Before we look at anything, let's lock in what this couch absolutely has to get right. Based on everything we've talked about, what would you say are the two or three things it has to nail?"
+    },
+    {
+      "role": "customer",
+      "text": "Deep enough to nap on, pet-hair-friendly durable fabric, and comfortably seats four."
+    },
+    {
+      "role": "ema",
+      "text": "Are there any dealbreakers where even if you loved how it looked, you wouldn't buy it?"
+    },
+    {
+      "role": "customer",
+      "text": "Yeah — anything white, or a fabric that needs professional cleaning."
+    },
+    {
+      "role": "ema",
+      "text": "White or high-maintenance fabrics are out—smart call with the golden. Is there a maximum size we absolutely can't go past, or a doorway it has to fit through?"
+    },
+    {
+      "role": "customer",
+      "text": "The wall's about 9 feet, and our front door is a standard 32-inch one."
+    },
+    {
+      "role": "ema",
+      "text": "Nine-foot wall and a 32-inch door—plenty to work with. What's the total price range you're hoping to stay around—comfortable target or hard maximum?"
+    },
+    {
+      "role": "customer",
+      "text": "Comfortable target is around $1,500, but I could stretch to $2,000 for the right one."
+    },
+    {
+      "role": "ema",
+      "text": "Before we narrow options, what's the best email for you in case we get cut off?"
+    },
+    {
+      "role": "customer",
+      "text": "riley.quinn88@gmail.com — that's the best one."
+    },
+    {
+      "role": "ema",
+      "text": "Anything important about the couch, the room, or what matters to you that we haven't talked about yet?"
+    },
+    {
+      "role": "customer",
+      "text": "Oh — we've got a toddler too, so bonus points if it survives juice spills."
+    },
+    {
+      "role": "ema",
+      "text": "So just to make sure I have this right—you're looking for something deep enough to nap on, with pet-hair-friendly durable fabric that can handle a toddler's juice spills, comfortably seating four, in a warm modern mid-tone gray or beige, fitting a nine-foot wall and 32-inch door, with a comfortable target around fifteen hundred up to two thousand. Is that an accurate picture of what you're looking for?"
+    },
+    {
+      "role": "customer",
+      "text": "That's spot on — though if you find one that repels toddlers entirely, I'll pay extra. Can you give me a couple of specific recommendations?"
+    },
+    {
+      "role": "ema",
+      "text": "Hmm, the catalog's coming back empty on that."
+    },
+    {
+      "role": "customer",
+      "text": "Oh no — can you try again? I'd love a couple of actual models that fit what I described."
+    },
+    {
+      "role": "ema",
+      "text": "The catalog's pretty limited right now. The Flexor's 4-seat L-shaped configuration lands right at $1,982—within your stretch budget—but it's currently out of stock across all variants. The Otis is in stock with 61 units and has the high-density foam and spring support that resists sagging, plus a durable frame, but it's priced at $2,626, which is above your two-thousand target. The Hazeli options are all in the four-thousand-plus range. Nothing else in the catalog hits your exact criteria right now. Want me to pull the full details on the Otis anyway, or should we browse together for other possibilities?"
+    }
+  ],
+  "voiceStarted": true
+}
