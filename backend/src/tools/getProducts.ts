@@ -23,7 +23,7 @@ export interface Product {
 
 const PRODUCTS_QUERY = `
   query Products($q: String!) {
-    products(first: 10, query: $q) {
+    products(first: 20, query: $q) {
       edges {
         node {
           id
@@ -60,41 +60,12 @@ const PRODUCTS_QUERY = `
   }
 `;
 
-const CHEAPEST_PRODUCTS_QUERY = `
-  query CheapestProducts {
-    products(first: 60, sortKey: PRICE) {
-      edges {
-        node {
-          id
-          title
-          onlineStoreUrl
-          availableForSale
-          totalInventory
-          featuredImage {
-            url
-          }
-          priceRange {
-            minVariantPrice {
-              amount
-              currencyCode
-            }
-          }
-          variants(first: 10) {
-            edges {
-              node {
-                availableForSale
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`;
-
-const EXPENSIVE_PRODUCTS_QUERY = `
-  query ExpensiveProducts {
-    products(first: 60, sortKey: PRICE, reverse: true) {
+// Browse query: fetch ALL published products in one page (Storefront max is 250;
+// the store has ~121 active). Previously this was a cheapest-60 + priciest-60 hack
+// that silently dropped mid-priced products once the catalog grew past 120.
+const ALL_PRODUCTS_QUERY = `
+  query AllProducts {
+    products(first: 250, sortKey: PRICE) {
       edges {
         node {
           id
@@ -318,17 +289,13 @@ async function runQuery(
 }
 
 async function getBroadProducts(): Promise<Product[]> {
-  const [cheapest, expensive] = await Promise.all([
-    runQuery({ query: CHEAPEST_PRODUCTS_QUERY }),
-    runQuery({ query: EXPENSIVE_PRODUCTS_QUERY }),
-  ]);
-
-  if (cheapest === null && expensive === null) {
+  const nodes = await runQuery({ query: ALL_PRODUCTS_QUERY });
+  if (nodes === null) {
     return [];
   }
 
   const byId = new Map<string, Product>();
-  for (const node of [...(cheapest ?? []), ...(expensive ?? [])]) {
+  for (const node of nodes) {
     if (!byId.has(node.id)) {
       byId.set(node.id, mapNodeCompact(node));
     }
