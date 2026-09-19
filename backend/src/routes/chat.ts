@@ -10,6 +10,7 @@ import {
   saveMessages,
 } from "../memory/store.js";
 import { logEvent } from "../memory/analytics.js";
+import { isOriginAllowed } from "../cors.js";
 import { logger } from "../logger.js";
 
 const SESSION_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -98,10 +99,20 @@ export const chatRoutes: FastifyPluginAsync = async (app) => {
       ...parsed.data.messages,
     ];
 
+    // This route streams via reply.raw, which bypasses @fastify/cors — so we must
+    // set the CORS header ourselves or the browser blocks the SSE response and the
+    // widget shows "couldn't reach the assistant." Reflect the origin if allowed.
+    const origin = request.headers.origin;
+    const corsHeaders: Record<string, string> =
+      typeof origin === "string" && isOriginAllowed(origin)
+        ? { "Access-Control-Allow-Origin": origin, Vary: "Origin" }
+        : {};
+
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
+      ...corsHeaders,
     });
 
     let assistantText = "";

@@ -6,6 +6,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
+import { isOriginAllowed } from "./cors.js";
 import healthRoutes from "./routes/health.js";
 import chatRoutes from "./routes/chat.js";
 import voiceRoutes from "./routes/voice.js";
@@ -42,38 +43,8 @@ export async function buildApp() {
       ? "*"
       : (origin, cb) => {
           if (!origin) return cb(null, true); // same-origin / non-browser (no Origin header)
-          let u: URL;
-          try {
-            u = new URL(origin);
-          } catch {
-            return cb(null, false); // unparseable (e.g. "null")
-          }
-          // Only allow secure origins on the standard HTTPS port — reject http://
-          // and non-standard ports (e.g. :444) even if the hostname would match.
-          if (u.protocol !== "https:") return cb(null, false);
-          if (u.port && u.port !== "443") return cb(null, false);
-          const host = u.hostname.toLowerCase();
-          const allow = config.corsOrigin
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-            .some((entry) => {
-              const e = entry.toLowerCase();
-              if (e.startsWith("*.")) {
-                // Wildcard: require a real dot-boundary subdomain match (never a
-                // substring like "evilmyshopify.com" matching "*.myshopify.com").
-                const base = e.slice(2);
-                return host === base || host.endsWith("." + base);
-              }
-              let eh = e;
-              try {
-                eh = new URL(e).hostname.toLowerCase();
-              } catch {
-                /* bare host entry */
-              }
-              return host === eh;
-            });
-          return cb(null, allow);
+          // Shared allowlist logic (also used by the streaming /chat route).
+          return cb(null, isOriginAllowed(origin));
         };
   await app.register(cors, { origin: corsOption });
 
