@@ -1,0 +1,117 @@
+{
+  "skills": [
+    {
+      "dimension": "flow_control",
+      "rating": "ok",
+      "note": "She kept a steady question cadence early and returned after jokes, but lost control in the middle with fragmented, narrated lookups and skipped whole phases (budget, contact, favorites, visualization).",
+      "example": "\"Let me try a broader search.\""
+    },
+    {
+      "dimension": "info_gathering",
+      "rating": "ok",
+      "note": "Pulled out pain, comfort, use, seats, color and room width well, but never got budget, timeline specifics, or contact info.",
+      "example": "\"How many people does it need to seat comfortably when everyone's over?\""
+    },
+    {
+      "dimension": "humor_tangents",
+      "rating": "strong",
+      "note": "Engaged warmly with the crater/dog jokes in one line then steered straight back to the process.",
+      "example": "\"Haha, a personal crater — that's dedication.\""
+    },
+    {
+      "dimension": "dead_air_bridges",
+      "rating": "weak",
+      "note": "Her only bridge was a robotic tool-narration, and some turns were bare fragments with no natural cover.",
+      "example": "\"Let me try a broader search.\""
+    },
+    {
+      "dimension": "looping_reoffer",
+      "rating": "weak",
+      "note": "No negotiation occurred, but she preemptively shut the door on any discount and leaked internal pricing reasoning instead of simply stating the price.",
+      "example": "\"No discount available on it right now — the margin's already tight.\""
+    },
+    {
+      "dimension": "customer_choice_reaffirm",
+      "rating": "weak",
+      "note": "She picked for the customer when asked rather than guiding them, and after they chose she gave zero reaffirmation tying back to the crater, dog, movie nights or 4–5 seats.",
+      "example": "\"I'd lean toward the Otis for your setup.\""
+    },
+    {
+      "dimension": "correctness",
+      "rating": "weak",
+      "note": "Recommended an out-of-stock product, read a stage direction aloud, repeated the same 'no dimensions listed' answer, never answered the direct dimensions question, and leaked margin.",
+      "example": "\"The Flexor has modular and L-shaped options in 3-, 4-, and 5-seat sizes.\""
+    },
+    {
+      "dimension": "flow_control",
+      "rating": "ok",
+      "note": "Duplicate-safe note: closed cleanly at the end with a clear instruction to add to cart.",
+      "example": "\"just pull it up on the site, pick your color or configuration, and add it to your cart.\""
+    }
+  ],
+  "mistakes": [
+    {
+      "severity": "critical",
+      "category": "margin/internal pricing leak",
+      "customer_said": "What's the damage price-wise?",
+      "ema_said": "No discount available on it right now — the margin's already tight.",
+      "problem": "Explicitly reveals internal margin mechanics, which the spec forbids; she should have just given the price."
+    },
+    {
+      "severity": "high",
+      "category": "recommended unavailable product",
+      "customer_said": "Four to five it is. Oh — heads up, the room's kind of narrow, does that matter?",
+      "ema_said": "The Flexor has modular and L-shaped options in 3-, 4-, and 5-seat sizes.",
+      "problem": "The Flexor is out of stock in the catalog; she surfaced and built interest in it, only disclosing unavailability several turns later after the customer pushed."
+    },
+    {
+      "severity": "high",
+      "category": "script leakage / robotic delivery",
+      "customer_said": "Casey — Casey Morgan. Nice to meet you, Ema.",
+      "ema_said": "She can help with both shopping and existing-order support.",
+      "problem": "Read a third-person stage direction from the spec aloud mid-introduction."
+    },
+    {
+      "severity": "high",
+      "category": "chose for the customer",
+      "customer_said": "So between the Flexor and that Otis — which would YOU pick?",
+      "ema_said": "I'd lean toward the Otis for your setup.",
+      "problem": "Bare pick with no reasoning and no return of the decision to the customer; the process requires the customer to choose and Ema to reaffirm with their own words."
+    },
+    {
+      "severity": "high",
+      "category": "unanswered direct question / repetition",
+      "customer_said": "What are the exact dimensions on the 4-seat one?",
+      "ema_said": "I don't see the exact assembled dimensions listed in the current product details.",
+      "problem": "Never answered the dimension question and then repeated the identical non-answer a turn later ('The descriptions don't list the exact assembled dimensions'), padding with shipping-policy info she wasn't asked about."
+    },
+    {
+      "severity": "medium",
+      "category": "phases skipped",
+      "customer_said": "Ooh, modular sounds promising.",
+      "ema_said": "(no budget, contact info, favorites, visualization, summary, or reinforcement)",
+      "problem": "Jumped from partial discovery straight to recommendation and close, skipping Ideal Offer Awareness/budget, contact collection, End of Intelligence Gathering summary, favorites narrowing, and decision reinforcement."
+    },
+    {
+      "severity": "medium",
+      "category": "tool narration / dead air",
+      "customer_said": "Four, ideally? Five if we're all being friendly about it.",
+      "ema_said": "Let me try a broader search.",
+      "problem": "Narrates a backend search instead of a warm human bridge; reads as robotic on voice."
+    },
+    {
+      "severity": "medium",
+      "category": "unverified link",
+      "customer_said": "Later.",
+      "ema_said": "The Otis page is at tempestfurnitur.com/products/otis-104-square-arm-l-shaped-2-piece-sectional-sofa...",
+      "problem": "Reads a long URL aloud on a voice call and the domain appears misspelled/unverified; risks sending the customer to a dead link."
+    },
+    {
+      "severity": "low",
+      "category": "banned opener pattern",
+      "customer_said": "Mostly the crater, honestly. Though my dog has also claimed one cushion as her personal throne.",
+      "ema_said": "Got the crater and a dog throne to deal with.",
+      "problem": "Near-verbatim 'Got it' style opener the spec bans, and she leaned on the same 'repeat their words back' formula nearly every turn."
+    }
+  ]
+}
