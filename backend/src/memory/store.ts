@@ -75,6 +75,41 @@ export async function getRecentMessages(
   }
 }
 
+// Per-person daily voice-time accounting (cost control). Best-effort; a DB failure
+// must never block a voice session.
+export async function addVoiceSeconds(visitorId: string, seconds: number): Promise<void> {
+  if (!config.dbEnabled) return;
+  try {
+    if (!visitorId || !VISITOR_RE.test(visitorId)) return;
+    // Clamp per report so a bad client value can't poison the tally (max 6h/session).
+    const s = Math.max(0, Math.min(Math.round(seconds), 6 * 3600));
+    if (!s) return;
+    await query(
+      `INSERT INTO voice_usage (visitor_id, day, seconds) VALUES ($1, current_date, $2)
+       ON CONFLICT (visitor_id, day)
+       DO UPDATE SET seconds = voice_usage.seconds + EXCLUDED.seconds, updated_at = now()`,
+      [visitorId, s]
+    );
+  } catch (err) {
+    logger.error({ err: String(err) }, "addVoiceSeconds failed");
+  }
+}
+
+export async function getVoiceSecondsToday(visitorId: string): Promise<number> {
+  if (!config.dbEnabled) return 0;
+  try {
+    if (!visitorId || !VISITOR_RE.test(visitorId)) return 0;
+    const res = await query<{ seconds: string }>(
+      `SELECT seconds FROM voice_usage WHERE visitor_id=$1 AND day=current_date`,
+      [visitorId]
+    );
+    return Number(res?.rows?.[0]?.seconds ?? 0) || 0;
+  } catch (err) {
+    logger.error({ err: String(err) }, "getVoiceSecondsToday failed");
+    return 0;
+  }
+}
+
 export async function recordProductInterest(
   visitorId: string,
   item: { productTitle: string; productId?: string; source?: string }

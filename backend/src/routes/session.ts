@@ -4,7 +4,7 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { logger } from "../logger.js";
 import { putObject, dateKey, sanitizeId } from "../storage/s3.js";
-import { ensureVisitor, saveMessages } from "../memory/store.js";
+import { ensureVisitor, saveMessages, addVoiceSeconds } from "../memory/store.js";
 
 const MAX_BODY_BYTES = 25 * 1024 * 1024;
 
@@ -124,6 +124,25 @@ const sessionRoutes: FastifyPluginAsync = async (app) => {
             if (toSave.length) await saveMessages(visitorId, toSave);
           } catch (err) {
             logger.warn({ err: String(err) }, "session/log: memory persist failed");
+          }
+
+          // Voice-time accounting for the per-person daily cap (best-effort).
+          try {
+            let durationSec = 0;
+            const md = meta && typeof (meta as Record<string, unknown>).durationMs === "number"
+              ? (meta as Record<string, number>).durationMs
+              : 0;
+            if (md > 0) {
+              durationSec = md / 1000;
+            } else {
+              const ts = transcript
+                .map((t) => (typeof t.ts === "number" ? t.ts : 0))
+                .filter((n) => n > 0);
+              if (ts.length >= 2) durationSec = (Math.max(...ts) - Math.min(...ts)) / 1000;
+            }
+            if (durationSec > 0) await addVoiceSeconds(visitorId, durationSec);
+          } catch (err) {
+            logger.warn({ err: String(err) }, "session/log: voice usage record failed");
           }
         }
 

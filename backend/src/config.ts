@@ -30,6 +30,8 @@ const EnvSchema = z.object({
   VISUALIZE_MAX_PER_DAY: z.coerce.number().int().positive().default(300),
   VISUALIZE_MAX_UPLOAD_MB: z.coerce.number().positive().default(12),
   VOICE_TOKENS_MAX_PER_DAY: z.coerce.number().int().positive().default(500),
+  // Per-person daily voice-time cap (seconds). Default 5 hours.
+  VOICE_MAX_SECONDS_PER_PERSON_PER_DAY: z.coerce.number().int().positive().default(5 * 3600),
 
   AWS_REGION: z.string().default("eu-north-1"),
   S3_BUCKET: z.string().optional(),
@@ -95,6 +97,7 @@ export const config = {
   visualizeMaxPerDay: env.VISUALIZE_MAX_PER_DAY,
   visualizeMaxUploadBytes: Math.round(env.VISUALIZE_MAX_UPLOAD_MB * 1024 * 1024),
   voiceTokensMaxPerDay: env.VOICE_TOKENS_MAX_PER_DAY,
+  voiceMaxSecondsPerPersonPerDay: env.VOICE_MAX_SECONDS_PER_PERSON_PER_DAY,
 
   awsRegion: env.AWS_REGION,
   s3Bucket: env.S3_BUCKET,

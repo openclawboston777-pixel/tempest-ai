@@ -138,6 +138,21 @@ export class VoiceSession {
   private inactivityTimer: number | null = null;
   private static readonly INACTIVITY_MS = 90000;
 
+  // Non-buying cutoff: if ~15 min pass without the call becoming a genuine buying
+  // conversation (no product/offer/favorite tool ever used), Ema politely wraps up.
+  // A real shopping call is exempt (buyingSignal) and continues normally.
+  private nonBuyingTimer: number | null = null;
+  private buyingSignal = false;
+  private sessionStartMs = 0;
+  private static readonly NONBUYING_MS = 15 * 60 * 1000;
+  private static readonly BUYING_TOOLS = new Set([
+    "get_products",
+    "get_product_economics",
+    "create_offer",
+    "record_favorite",
+    "set_favorite_status",
+  ]);
+
   // Ensures a session's transcript is persisted at most once (normal stop() OR the
   // pagehide beacon — never both, which would duplicate the customer's history).
   private logUploaded = false;
@@ -211,6 +226,40 @@ export class VoiceSession {
         this.stop();
       }
     }, VoiceSession.INACTIVITY_MS);
+  }
+
+  private clearNonBuying(): void {
+    if (this.nonBuyingTimer !== null) {
+      clearTimeout(this.nonBuyingTimer);
+      this.nonBuyingTimer = null;
+    }
+  }
+
+  // Fired ~15 min into a call. If it never became a genuine buying conversation,
+  // have Ema deliver a warm shut-off line, then end the paid session shortly after.
+  private onNonBuyingTimeout(): void {
+    if (!this.active || this.buyingSignal) return; // real shopping call → let it run
+    try {
+      const ws = this.ws;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({
+            type: "response.create",
+            response: {
+              instructions:
+                "This call has gone about fifteen minutes without becoming a genuine buying conversation. Warmly and briefly tell the customer that you're set up to focus on helping people find and buy the right couch, so you're going to wrap up here — invite them to come back anytime they want couch help — then stop speaking.",
+            },
+          }),
+        );
+      }
+    } catch {
+      /* ignore */
+    }
+    this.setStatus("Wrapping up…");
+    // Give Ema ~15s to say the line, then end the paid session.
+    window.setTimeout(() => {
+      if (this.active) this.stop();
+    }, 15000);
   }
 
   private emitTranscript(role: "user" | "ai", text: string): void {
@@ -344,7 +393,11 @@ export class VoiceSession {
     this.stopped = false;
     this.active = true;
     this.logUploaded = false;
+    this.buyingSignal = false;
+    this.sessionStartMs = Date.now();
     this.resetInactivity();
+    this.clearNonBuying();
+    this.nonBuyingTimer = window.setTimeout(() => this.onNonBuyingTimeout(), VoiceSession.NONBUYING_MS);
     this.sessionId = makeSessionId();
     this.transcript = [];
     this.chunks = [];
@@ -372,7 +425,19 @@ export class VoiceSession {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: this.visitorId }),
       });
-      const tokenData = (await resp.json()) as VoiceToken;
+      const tokenData = (await resp.json().catch(() => ({}))) as VoiceToken & { error?: string };
+      if (!resp.ok || !tokenData.token) {
+        const e = tokenData.error || "";
+        this.setStatus(
+          e === "voice_person_limit"
+            ? "You’ve reached today’s voice limit — you can keep chatting by text."
+            : e === "voice_daily_limit"
+              ? "Voice is at capacity right now — please chat by text."
+              : "Voice is unavailable right now — please chat by text.",
+        );
+        this.stop();
+        return;
+      }
       const token = tokenData.token;
       const model = tokenData.model || "grok-voice-latest";
       const instructions = tokenData.instructions || "";
@@ -620,6 +685,9 @@ export class VoiceSession {
           // capable as text (products, policies, orders, support, memory, offers).
           const toolName = event.name || "";
           if (toolName) {
+            // Real product/offer engagement marks this as a genuine buying
+            // conversation, exempting it from the 15-min non-buying shut-off.
+            if (VoiceSession.BUYING_TOOLS.has(toolName)) this.buyingSignal = true;
             this.setStatus("Thinking…");
             let output = JSON.stringify({ error: "tool_error" });
             try {
@@ -778,7 +846,7 @@ export class VoiceSession {
         // by future voice OR text sessions (backend writes them to Postgres).
         visitorId: this.visitorId,
         transcript: this.transcript,
-        meta: { channel: "voice" },
+        meta: { channel: "voice", durationMs: this.sessionStartMs ? Date.now() - this.sessionStartMs : 0 },
       };
       void fetch(`${this.backendUrl}/session/log`, {
         method: "POST",
@@ -805,7 +873,7 @@ export class VoiceSession {
         sessionId: this.sessionId,
         visitorId: this.visitorId,
         transcript: this.transcript,
-        meta: { channel: "voice" },
+        meta: { channel: "voice", durationMs: this.sessionStartMs ? Date.now() - this.sessionStartMs : 0 },
       });
       const url = `${this.backendUrl}/session/log`;
       if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
@@ -830,6 +898,7 @@ export class VoiceSession {
     this.stopped = true;
     this.active = false;
     this.clearInactivity();
+    this.clearNonBuying();
 
     // Flush any pending partial transcripts before finalizing.
     try {

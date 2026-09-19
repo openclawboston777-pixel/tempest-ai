@@ -122,6 +122,14 @@ export async function migrate(): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now()
     )`);
 
+    await query(`CREATE TABLE IF NOT EXISTS voice_usage (
+      visitor_id text NOT NULL,
+      day date NOT NULL,
+      seconds integer NOT NULL DEFAULT 0,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (visitor_id, day)
+    )`);
+
     await query(
       `CREATE INDEX IF NOT EXISTS idx_messages_visitor ON messages(visitor_id, created_at)`
     );

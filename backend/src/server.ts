@@ -77,9 +77,13 @@ export async function buildApp() {
         };
   await app.register(cors, { origin: corsOption });
 
-  // Global rate limit; /voice-token is intended to be stricter (see note).
+  // Abuse guard only — generous so it never blocks a real visitor. Now keyed on
+  // the real client IP (see trustProxy above), so one person's chatty voice call
+  // no longer eats everyone else's quota. Actual voice COST is controlled by the
+  // 90s-silence cutoff, the 15-min non-buying shut-off, the per-person daily voice
+  // cap, and the global daily voice/image caps — not by this per-minute limit.
   await app.register(rateLimit, {
-    max: 60,
+    max: 240,
     timeWindow: "1 minute",
   });
 

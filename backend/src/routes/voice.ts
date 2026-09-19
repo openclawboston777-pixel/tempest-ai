@@ -11,6 +11,7 @@ import {
   ensureVisitor,
   getProfileContext,
   getRecentMessages,
+  getVoiceSecondsToday,
 } from "../memory/store.js";
 
 // Client-supplied session/visitor ids are untrusted: strictly validate shape.
@@ -29,6 +30,29 @@ export const voiceRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/voice-token", async (request, reply) => {
     try {
+      // Persistent visitor id (needed for the per-person daily voice cap + memory).
+      const parsedBody = voiceTokenBodySchema.safeParse(request.body ?? {});
+      const sessionId =
+        parsedBody.success &&
+        parsedBody.data.sessionId &&
+        SESSION_ID_RE.test(parsedBody.data.sessionId)
+          ? parsedBody.data.sessionId
+          : undefined;
+
+      // Per-person daily voice cap (cost control): one person cannot tie up more
+      // than config.voiceMaxSecondsPerPersonPerDay of paid voice time per day.
+      if (sessionId) {
+        try {
+          const usedSec = await getVoiceSecondsToday(sessionId);
+          if (usedSec >= config.voiceMaxSecondsPerPersonPerDay) {
+            reply.code(429).send({ error: "voice_person_limit" });
+            return;
+          }
+        } catch (err) {
+          logger.warn({ err: String(err) }, "voice-token: usage check failed");
+        }
+      }
+
       // Global daily cap on realtime-voice sessions (xAI minutes = cost).
       if (!allow("voice_token", config.voiceTokensMaxPerDay)) {
         reply.code(429).send({ error: "voice_daily_limit" });
@@ -39,13 +63,6 @@ export const voiceRoutes: FastifyPluginAsync = async (app) => {
       // Cross-channel memory (best-effort; never blocks token minting).
       let instructions = EMA_VOICE_INSTRUCTIONS;
       try {
-        const parsedBody = voiceTokenBodySchema.safeParse(request.body ?? {});
-        const sessionId =
-          parsedBody.success &&
-          parsedBody.data.sessionId &&
-          SESSION_ID_RE.test(parsedBody.data.sessionId)
-            ? parsedBody.data.sessionId
-            : undefined;
         if (sessionId) {
           const uaRaw = String(request.headers["user-agent"] || "");
           await ensureVisitor(sessionId, uaRaw);
