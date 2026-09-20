@@ -223,6 +223,46 @@ export const toolDefs = [
   },
 ];
 
+// VOICE-ONLY tool. The realtime agent must NEVER read a URL or a code out loud;
+// instead it calls show_in_chat and the widget renders a tappable link/code card
+// in the chat window. Added only to voiceToolDefs (text chat renders links inline,
+// so the text model doesn't need it). The widget intercepts this call locally and
+// does not round-trip to the backend; the executeTool case below is a harmless
+// fallback so a stray backend call still returns ok instead of "unknown_tool".
+const showInChatTool = {
+  type: "function" as const,
+  function: {
+    name: "show_in_chat",
+    description:
+      "VOICE ONLY. Put a clickable link (or a code) visually into the chat window for the customer to see and tap — because you must NEVER read a URL or a discount code out loud. Use it to share a product page link, or a policy/returns/warranty page link (pass the exact `url` from get_shop_policies — never make a URL up). After calling it, just tell the customer you've dropped it in the chat. Note: discount codes and checkout links from create_offer ALREADY appear automatically in the on-screen Deal Lock card, so you do not need this for those.",
+    parameters: {
+      type: "object",
+      properties: {
+        label: {
+          type: "string",
+          description:
+            "Short human label for what the link/code is, e.g. 'Returns & refunds policy' or 'The Hazeli (dark grey)'.",
+        },
+        url: {
+          type: "string",
+          description:
+            "The exact URL to show, taken verbatim from a tool result (get_products url or get_shop_policies url). Never invent or guess a URL.",
+        },
+        code: {
+          type: "string",
+          description:
+            "Optional. A code to display, only if it came from a tool result this turn.",
+        },
+      },
+      required: ["label"],
+      additionalProperties: false,
+    },
+  },
+};
+
+// The voice agent gets every text tool PLUS show_in_chat.
+export const voiceToolDefs = [...toolDefs, showInChatTool];
+
 async function executeToolImpl(
   name: string,
   argsJson: string,
@@ -230,6 +270,10 @@ async function executeToolImpl(
 ): Promise<string> {
   try {
     switch (name) {
+      case "show_in_chat": {
+        // Widget renders this locally; backend fallback just acknowledges.
+        return JSON.stringify({ ok: true });
+      }
       case "get_products": {
         let query = "";
         try {

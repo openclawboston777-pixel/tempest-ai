@@ -6,6 +6,14 @@ interface PageEntry {
   title: string;
   handle: string;
   body: string;
+  url: string;
+}
+
+// Public URL for a store page from its handle. Built here so Ema never has to
+// construct (and risk fabricating) a link — she passes this exact url to
+// show_in_chat when a customer wants the full policy/warranty/returns page.
+function pageUrl(handle: string): string {
+  return `https://${config.shopifyStoreDomain}/pages/${handle}`;
 }
 
 interface PagesResponse {
@@ -124,6 +132,7 @@ export async function getShopPolicies(topic?: string): Promise<string> {
           title: e.node.title ?? "",
           handle: e.node.handle ?? "",
           body: cleanText(e.node.body ?? ""),
+          url: pageUrl(e.node.handle ?? ""),
         }))
         .filter((p) => !isExcluded(p.handle, p.body));
 
@@ -155,6 +164,7 @@ export async function getShopPolicies(topic?: string): Promise<string> {
           pages: top.map((s) => ({
             title: s.page.title,
             handle: s.page.handle,
+            url: s.page.url,
             body: s.page.body.slice(0, 2500),
           })),
         });

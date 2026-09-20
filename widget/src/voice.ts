@@ -67,6 +67,9 @@ export interface VoiceSessionOpts {
   // Fired when the session starts (true) and ends (false) so the host can show a
   // persistent indicator instead of the session dying silently in the background.
   onActiveChange?: (active: boolean) => void;
+  // Fired when the voice agent calls show_in_chat — the host renders a tappable
+  // link/code card in the chat so URLs/codes are shown visually, never spoken.
+  onCard?: (card: { label?: string; url?: string; code?: string }) => void;
 }
 
 function base64FromBytes(bytes: Uint8Array): string {
@@ -339,12 +342,13 @@ export class VoiceSession {
     }
   }
 
-  async startProactive(btn?: HTMLElement): Promise<void> {
+  async startProactive(btn?: HTMLElement, opts?: { resume?: boolean }): Promise<void> {
     if (btn) {
       this.btn = btn;
       btn.classList.add("tw-voice-active");
     }
     await this.start();
+    const resume = opts?.resume === true;
     // Ema greets first; send once the socket is open + session.update flushed.
     try {
       const ws = this.ws;
@@ -360,8 +364,14 @@ export class VoiceSession {
             JSON.stringify({
               type: "response.create",
               response: {
-                instructions:
-                  "Warmly greet the customer in one short sentence and ask how you can help.",
+                instructions: resume
+                  ? // Reconnecting to a conversation already in progress (the customer
+                    // hit X and/or changed pages). The recent conversation is in the
+                    // session context — do NOT start over.
+                    "You are reconnecting to a conversation already in progress with a customer you have been helping — the recent conversation is in your context. Do NOT introduce yourself, greet them as if you're meeting for the first time, or ask their name again. In one short, warm sentence let them know you're still here, then continue naturally from exactly where you left off."
+                  : // START the sales process on the very first line (Phase 1), don't open
+                    // as a passive help desk — the opener sets the whole tone.
+                    "Deliver your OPENING line to kick off the sales process (Phase 1): a warm, confident one-liner that introduces you as Ema and asks their name to get started — for example, \"Hey! I'm Ema — what's your name?\" Do NOT open by offering passive help or saying anything like \"let me know if you need anything\"; you are here to proactively help them find and choose the right couch.",
               },
             }),
           );
@@ -684,6 +694,32 @@ export class VoiceSession {
           // Generic bridge: run ANY of Ema's tools via the backend so voice is as
           // capable as text (products, policies, orders, support, memory, offers).
           const toolName = event.name || "";
+          if (toolName === "show_in_chat") {
+            // Rendered locally in the chat UI — never round-trips to the backend,
+            // so URLs/codes are shown visually (tappable) instead of spoken aloud.
+            let card: { label?: string; url?: string; code?: string } = {};
+            try {
+              card = JSON.parse(event.arguments || "{}");
+            } catch {
+              card = {};
+            }
+            this.opts.onCard?.(card);
+            const ws0 = this.ws;
+            if (ws0 && ws0.readyState === WebSocket.OPEN) {
+              ws0.send(
+                JSON.stringify({
+                  type: "conversation.item.create",
+                  item: {
+                    type: "function_call_output",
+                    call_id: event.call_id,
+                    output: JSON.stringify({ ok: true }),
+                  },
+                }),
+              );
+              ws0.send(JSON.stringify({ type: "response.create" }));
+            }
+            break;
+          }
           if (toolName) {
             // Real product/offer engagement marks this as a genuine buying
             // conversation, exempting it from the 15-min non-buying shut-off.

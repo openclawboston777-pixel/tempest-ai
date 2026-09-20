@@ -109,21 +109,17 @@ const sessionRoutes: FastifyPluginAsync = async (app) => {
           "application/json"
         );
 
-        // Also persist voice turns to Postgres so they're recallable cross-channel.
-        // Best-effort only: never changes the HTTP response.
+        // Voice TURNS are persisted INCREMENTALLY via /session/turn during the call
+        // (so cross-page recall survives an abrupt navigation — the customer hitting
+        // X then opening another page). We deliberately do NOT re-save the transcript
+        // to Postgres here, which would duplicate those turns. This endpoint only
+        // archives the full transcript to object storage and records voice time.
         const visitorId = parsed.data.visitorId;
         if (visitorId && VISITOR_ID_RE.test(visitorId)) {
           try {
             await ensureVisitor(visitorId);
-            const toSave = transcript
-              .filter((t) => t && typeof t.text === "string" && t.text.trim())
-              .map((t) => ({
-                role: t.role === "ai" ? "assistant" : "user",
-                content: t.text,
-              }));
-            if (toSave.length) await saveMessages(visitorId, toSave);
           } catch (err) {
-            logger.warn({ err: String(err) }, "session/log: memory persist failed");
+            logger.warn({ err: String(err) }, "session/log: ensureVisitor failed");
           }
 
           // Voice-time accounting for the per-person daily cap (best-effort).
@@ -149,6 +145,51 @@ const sessionRoutes: FastifyPluginAsync = async (app) => {
         return { ok: config.storageEnabled, key: config.storageEnabled ? key : null };
       } catch (err) {
         logger.error({ err }, "session/log failed");
+        return { ok: false };
+      }
+    }
+  );
+
+  // Incremental voice-turn persistence. Called by the widget as each spoken turn
+  // finalizes (and on X / navigation) so the backend has the running conversation
+  // in Postgres BEFORE the customer leaves the page. This is what lets Ema resume
+  // and still know the customer after they hit X and open another page — instead of
+  // only saving at session end (which an abrupt navigation can drop).
+  const TurnBody = z.object({
+    visitorId: z.string(),
+    turns: z
+      .array(z.object({ role: z.string(), content: z.string() }))
+      .min(1)
+      .max(50),
+  });
+  app.post(
+    "/session/turn",
+    { config: { rateLimit: { max: 180, timeWindow: "1 minute" } } },
+    async (req, reply) => {
+      try {
+        const parsed = TurnBody.safeParse(req.body);
+        if (!parsed.success) {
+          reply.code(400);
+          return { ok: false, error: "invalid body" };
+        }
+        const { visitorId, turns } = parsed.data;
+        if (!VISITOR_ID_RE.test(visitorId)) {
+          reply.code(400);
+          return { ok: false, error: "invalid_visitor_id" };
+        }
+        const toSave = turns
+          .filter((t) => t && typeof t.content === "string" && t.content.trim())
+          .map((t) => ({
+            role: t.role === "ai" ? "assistant" : "user",
+            content: t.content.slice(0, 4000),
+          }));
+        if (!toSave.length) return { ok: true, saved: 0 };
+        await ensureVisitor(visitorId);
+        await saveMessages(visitorId, toSave);
+        return { ok: true, saved: toSave.length };
+      } catch (err) {
+        logger.error({ err }, "session/turn failed");
+        reply.code(500);
         return { ok: false };
       }
     }

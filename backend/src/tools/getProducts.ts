@@ -332,7 +332,10 @@ async function getBroadProducts(): Promise<Product[]> {
 const PRODUCT_CACHE_TTL_MS = 60_000;
 const productCache = new Map<string, { t: number; data: Product[] }>();
 
-export async function getProducts(query: string): Promise<Product[]> {
+export async function getProducts(
+  query: string,
+  opts?: { noCache?: boolean },
+): Promise<Product[]> {
   if (config.mockShopify) {
     logger.info({ query }, "getProducts: MOCK mode (Shopify env not configured)");
     return mockProducts(query);
@@ -342,8 +345,12 @@ export async function getProducts(query: string): Promise<Product[]> {
   const cacheKey = isBroad ? "__broad__" : buildSearchQuery(query);
 
   const now = Date.now();
-  const hit = productCache.get(cacheKey);
-  if (hit && now - hit.t < PRODUCT_CACHE_TTL_MS) return hit.data;
+  // Pricing/offer paths pass noCache so quoted prices & discounts are always live —
+  // prices on the store can change at any time and a stale quote could break margin.
+  if (!opts?.noCache) {
+    const hit = productCache.get(cacheKey);
+    if (hit && now - hit.t < PRODUCT_CACHE_TTL_MS) return hit.data;
+  }
 
   try {
     let result: Product[];

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { XaiVoiceProvider } from "../providers/xaiVoiceProvider.js";
 import type { VoiceProvider } from "../providers/voiceProvider.js";
 import { EMA_VOICE_INSTRUCTIONS } from "../ema/systemPrompt.js";
-import { toolDefs, executeTool } from "../tools/index.js";
+import { voiceToolDefs, executeTool } from "../tools/index.js";
 import { config } from "../config.js";
 import { allow } from "../costGuard.js";
 import { logger } from "../logger.js";
@@ -94,7 +94,7 @@ export const voiceRoutes: FastifyPluginAsync = async (app) => {
         // Spoken-form fixes applied before TTS (transcript keeps the original).
         // "Ema" -> "Emma" so it's pronounced "EH-mah", not "EE-ma".
         replace: { Ema: "Emma" },
-        tools: toolDefs,
+        tools: voiceToolDefs,
       };
     } catch (err) {
       logger.error({ err }, "voice token error");
@@ -127,7 +127,7 @@ export const voiceRoutes: FastifyPluginAsync = async (app) => {
   // (get_products, get_shop_policies, get_order_status, submit_support_ticket,
   // remember_customer, favorites, get_product_economics, create_offer) so voice
   // is as capable as text. Returns the raw JSON-string output for the model.
-  const KNOWN_TOOLS = new Set(toolDefs.map((t) => t.function.name));
+  const KNOWN_TOOLS = new Set(voiceToolDefs.map((t) => t.function.name));
   const voiceToolSchema = z.object({
     name: z.string(),
     arguments: z.union([z.string(), z.record(z.any())]).optional(),

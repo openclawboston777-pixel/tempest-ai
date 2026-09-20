@@ -73,7 +73,10 @@ export interface Economics {
 }
 
 export async function getProductEconomics(productQuery: string): Promise<Economics> {
-  const products = await getProducts(productQuery);
+  // Always price offers off LIVE catalog data (bypass the browse cache): store
+  // prices can change at any time and a stale price would compute the wrong
+  // discount/margin. Correct pricing on money paths matters more than latency.
+  const products = await getProducts(productQuery, { noCache: true });
   const product = products.find((p) => p.image) || products[0];
   if (!product) return { ok: false, error: "product_not_found" };
 
